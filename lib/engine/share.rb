@@ -11,6 +11,20 @@ module Engine
                   :double_cert
     attr_reader :corporation, :president, :index
 
+    def to_h
+      {
+        :percent => percent,
+        :buyable => buyable,
+        :counts_for_limit => counts_for_limit,
+        :cert_size => cert_size,
+        :last_cert => last_cert,
+        :double_cert => double_cert,
+        :corporation => corporation,
+        :president => president,
+        :index => index,
+      }
+    end
+
     def initialize(corporation, owner: nil, president: false, percent: 10, index: 0, cert_size: 1)
       @cert_size = cert_size
       @corporation = corporation

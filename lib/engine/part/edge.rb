@@ -7,6 +7,13 @@ module Engine
     class Edge < Base
       attr_accessor :lanes, :num
 
+      def to_h
+        super.to_h.merge({
+          :lanes => lanes,
+          :num => num,
+        })
+      end
+
       def id
         @id ||= "#{hex.id}_#{@num}_#{@lanes[1]}"
       end

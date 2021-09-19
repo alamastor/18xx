@@ -316,6 +316,45 @@ module Engine
       RAND_C = 12_345
       RAND_M = 2**31
 
+      def to_h
+        {
+          :id => id,
+          :title => self.class.title,
+          :players => players.map(&:to_h),
+          :optional_rules => optional_rules,
+          :bank => bank.to_h,
+          :cert_limit => cert_limit,
+          :cities => cities,
+          :companies => companies.map(&:to_h),
+          :corporations => corporations.map(&:to_h),
+          :depot => depot,
+          :finished => finished,
+          :graph => graph,
+          :hexes => hexes,
+          :loading => loading,
+          :loans => loans,
+          :minors => minors,
+          :phase => phase.to_h,
+          :operating_rounds => operating_rounds,
+          :round => round.to_h,
+          :share_pool => share_pool.to_h,
+          :stock_market => stock_market.to_h,
+          :tile_groups => tile_groups,
+          :tiles => tiles.map(&:to_h),
+          :turn => turn,
+          :total_loans => total_loans,
+          :round_history => round_history,
+          :all_tiles => all_tiles.map(&:to_h),
+          :exception => exception,
+          :last_processed_action => last_processed_action,
+          :broken_action => broken_action,
+          :turn_start_action_id => turn_start_action_id,
+          :last_turn_start_action_id => last_turn_start_action_id,
+          :programmed_actions => programmed_actions,
+          :round_counter => round_counter
+        }
+      end
+
       def setup_preround; end
 
       def setup; end

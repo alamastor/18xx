@@ -9,6 +9,15 @@ module Engine
       attr_accessor :reservations
       attr_reader :tokens, :extra_tokens, :boom
 
+      def to_h
+        super.to_h.merge({
+          :reservations => reservations,
+          :tokens => tokens,
+          :extra_tokens => extra_tokens,
+          :boom => boom,
+        })
+      end
+
       def initialize(revenue, **opts)
         super
         @slots = (opts[:slots] || 1).to_i

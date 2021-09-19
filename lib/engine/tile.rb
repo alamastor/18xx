@@ -22,6 +22,42 @@ module Engine
 
     ALL_EDGES = [0, 1, 2, 3, 4, 5].freeze
 
+    def to_h
+      {
+        :blocks_lay => blocks_lay,
+        :hex => hex,
+        :icons => icons,
+        :index => index,
+        :legal_rotations => legal_rotations,
+        :location_name => location_name,
+        :name => name,
+        :opposite => opposite,
+        :reservations => reservations,
+        :upgrades => upgrades,
+        :color => color,
+        :borders => borders,
+        :cities => cities.map(&:to_h),
+        :junction => junction,
+        :nodes => nodes.map(&:to_h),
+        :labels => labels,
+        :parts => parts.map(&:to_h),
+        :preprinted => preprinted,
+        :rotation => rotation,
+        :stops => stops.map(&:to_h),
+        :towns => towns.map(&:to_h),
+        :offboards => offboards,
+        :blockers => blockers,
+        :city_towns => city_towns.map(&:to_h),
+        :unlimited => unlimited,
+        :stubs => stubs,
+        :partitions => partitions,
+        :id => id,
+        :frame => frame,
+        :stripes => stripes,
+        :hidden => hidden,
+      }
+    end
+
     def self.for(name, **opts)
       if (code = WHITE[name])
         color = :white

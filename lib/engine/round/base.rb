@@ -13,6 +13,19 @@ module Engine
       attr_reader :entities, :entity_index, :round_num, :steps
       attr_accessor :last_to_act, :pass_order, :at_start
 
+      def to_h
+        {
+          :name => name,
+          :entities => entities.map(&:to_h),
+          :entity_index => entity_index,
+          :round_num => round_num,
+          :steps => steps,
+          :last_to_act => last_to_act,
+          :pass_order => pass_order,
+          :at_start => at_start,
+        }
+      end
+
       DEFAULT_STEPS = [
         Step::EndGame,
         Step::Message,

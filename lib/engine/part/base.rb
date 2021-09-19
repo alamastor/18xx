@@ -9,6 +9,12 @@ module Engine
 
       attr_accessor :index, :tile
 
+      def to_h
+        {
+          :index => index,
+        }
+      end
+
       def id
         @id ||= "#{tile.id}-#{index}"
       end

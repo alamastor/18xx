@@ -23,6 +23,17 @@ module Engine
       @history = []
     end
 
+    def to_h
+      {
+        :id => id,
+        :name => name,
+        :cash => cash,
+        :value => value,
+        :companies => companies,
+        :history => history,
+      }
+    end
+
     def value
       @cash + shares.select { |s| s.corporation.ipoed }.sum(&:price) + @companies.sum(&:value)
     end

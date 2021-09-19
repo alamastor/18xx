@@ -9,6 +9,27 @@ module Engine
                   :stops, :terminal, :town, :track, :ignore
       attr_accessor :ignore_gauge_walk, :ignore_gauge_compare
 
+      def to_h
+        super.to_h.merge({
+          :a => a.to_h,
+          :b => b.to_h,
+          :city => city&.to_h,
+          :edges => edges.map(&:to_h),
+          :exit_lanes => exit_lanes,
+          :junction => junction,
+          :lanes => lanes,
+          :nodes => nodes.map(&:to_h),
+          :offboard => offboard,
+          :stops => stops.map(&:to_h),
+          :terminal => terminal,
+          :town => town&.to_h,
+          :track => track,
+          :ignore => ignore,
+          :ignore_gauge_walk => ignore_gauge_walk,
+          :ignore_gauge_compare => ignore_gauge_compare,
+        })
+      end
+
       LANES = [[1, 0].freeze, [1, 0].freeze].freeze
       MATCHES_BROAD = %i[broad dual].freeze
       MATCHES_NARROW = %i[narrow dual].freeze

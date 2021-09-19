@@ -7,6 +7,18 @@ module Engine
     attr_accessor :next_on
     attr_reader :name, :operating_rounds, :tiles, :phases, :status, :corporation_sizes
 
+    def to_h
+      {
+        :next_on => next_on,
+        :name => name,
+        :operating_rounds => operating_rounds,
+        :tiles => tiles,
+        :phases => phases,
+        :status => status,
+        :corporation_sizes => corporation_sizes,
+      }
+    end
+
     def initialize(phases, game)
       @index = 0
       @phases = phases

@@ -8,6 +8,15 @@ module Engine
       attr_accessor :style
       attr_reader :to_city, :boom, :double
 
+      def to_h
+        super.to_h.merge({
+          :style => style,
+          :to_city => to_city,
+          :boom => boom,
+          :double => double
+        })
+      end
+
       def initialize(revenue, **opts)
         super
 

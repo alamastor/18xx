@@ -29,6 +29,32 @@ module Engine
                 :presidents_share, :price_multiplier
     attr_writer :par_price, :share_price
 
+    def to_h
+      {
+        :ipoed => ipoed,
+        :par_via_exchange => par_via_exchange,
+        :max_ownership_percent => max_ownership_percent,
+        :float_percent => float_percent,
+        :capitalization => capitalization,
+        :second_share => second_share,
+        :type => type,
+        :floatable => floatable,
+        :original_par_price => original_par_price,
+        :reservation_color => reservation_color,
+        :min_price => min_price,
+        :ipo_owner => ipo_owner,
+        :always_market_price => always_market_price,
+        :companies => companies,
+        :name => name,
+        :full_name => full_name,
+        :fraction_shares => fraction_shares,
+        :id => id,
+        :needs_token_to_par => needs_token_to_par,
+        :presidents_share => presidents_share,
+        :price_multiplier => price_multiplier,
+      }
+    end
+
     SHARES = ([20] + Array.new(8, 10)).freeze
 
     def initialize(sym:, name:, **opts)

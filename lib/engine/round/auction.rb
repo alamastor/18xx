@@ -5,6 +5,13 @@ require_relative 'base'
 module Engine
   module Round
     class Auction < Base
+
+      def to_h
+        super.merge({
+          :short_name => @short_name,
+        })
+      end
+
       def name
         'Auction Round'
       end

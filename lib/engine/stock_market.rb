@@ -6,6 +6,15 @@ module Engine
   class StockMarket
     attr_reader :market, :par_prices, :has_close_cell, :zigzag
 
+    def to_h
+      {
+        :market => market.map{ |x| x.map(&:to_h)},
+        :par_prices => par_prices.map(&:to_h),
+        :has_close_cell => has_close_cell,
+        :zigzag => zigzag,
+      }
+    end
+
     def initialize(market, unlimited_types, multiple_buy_types: [], zigzag: nil)
       @par_prices = []
       @has_close_cell = false

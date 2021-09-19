@@ -4,6 +4,17 @@ module Engine
   class SharePrice
     attr_reader :coordinates, :price, :corporations, :can_par, :type, :types
 
+    def to_h
+      {
+        :coordinates => coordinates,
+        :price => price,
+        :corporations => corporations,
+        :can_par => can_par,
+        :type => type,
+        :types => types,
+      }
+    end
+
     TYPE_MAP = {
       'p' => :par,
       'e' => :endgame,

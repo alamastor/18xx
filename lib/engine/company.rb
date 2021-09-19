@@ -13,6 +13,24 @@ module Engine
     attr_accessor :name, :desc, :max_price, :min_price, :revenue, :discount, :value
     attr_reader :sym, :min_auction_price, :treasury, :interval, :color, :text_color
 
+    def to_h
+      {
+        :name => name,
+        :desc => desc,
+        :max_price => max_price,
+        :min_price => min_price,
+        :revenue => revenue,
+        :discount => discount,
+        :value => value,
+        :sym => sym,
+        :min_auction_price => min_auction_price,
+        :treasury => treasury,
+        :interval => interval,
+        :color => color,
+        :text_color => text_color,
+      }
+    end
+
     def initialize(sym:, name:, value:, revenue: 0, desc: '', abilities: [], **opts)
       @sym = sym
       @name = name

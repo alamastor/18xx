@@ -12,6 +12,15 @@ module Engine
 
     attr_reader :companies
 
+    def to_h
+      {
+        :companies => companies.map(&:to_h),
+        :broken => broken?,
+        :cash => cash,
+        :shares => shares,
+      }
+    end
+
     def initialize(cash, log: [], check: true)
       @cash = cash
       @log = log

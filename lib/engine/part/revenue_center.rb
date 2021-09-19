@@ -8,6 +8,18 @@ module Engine
       attr_accessor :groups
       attr_reader :hide, :revenue, :revenue_to_render, :visit_cost, :route, :loc
 
+      def to_h
+        super.to_h.merge({
+          :groups => groups,
+          :hide => hide,
+          :revenue => revenue,
+          :revenue_to_render => revenue_to_render,
+          :visit_cost => visit_cost,
+          :route => route,
+          :loc => loc,
+        })
+      end
+
       PHASES = %i[yellow green brown gray diesel].freeze
 
       def initialize(revenue, **opts)

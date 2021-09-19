@@ -10,6 +10,13 @@ module Engine
     include Entity
     include ShareHolder
 
+    def to_h
+      {
+        :name => name,
+        :shares => shares.map(&:to_h),
+      }
+    end
+
     def initialize(game, allow_president_sale: false)
       @game = game
       @bank = game.bank
