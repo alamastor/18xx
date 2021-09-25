@@ -140,26 +140,16 @@ module Engine
           },
         ].freeze
 
-        UNIT3_PHASES_NO_K3 = [
-          {
-            name: '3b',
-            on: '7',
-            train_limit: 3,
-            tiles: %i[yellow green brown gray],
-            operating_rounds: 3,
-          },
-        ].freeze
-
         PHASES_K3 = [
           {
-            name: '4a',
+            name: '4',
             on: '6',
             train_limit: 99,
             tiles: %i[yellow green brown gray],
             operating_rounds: 3,
           },
           {
-            name: '4b',
+            name: '4a',
             on: '7',
             train_limit: 99,
             tiles: %i[yellow green brown gray],
@@ -170,32 +160,32 @@ module Engine
         def game_phases
           gphases = COMMON_PHASES.dup
           gphases.concat(UNIT2_PHASES_NO_K3) if @units[2] && !@kits[3]
-          gphases.concat(UNIT3_PHASES_NO_K3) if @units[3] && !@kits[3]
           gphases.concat(PHASES_K3) if @kits[3]
           gphases
         end
 
-        ALL_TRAINS_NO_K3 = {
+        ALL_TRAINS = {
           '2' => { distance: 2, price: 180, rusts_on: '5' },
           '3' => { distance: 3, price: 300 },
           '4' => { distance: 4, price: 430 },
           '5' => { distance: 5, price: 550 },
-          '3T' => { distance: 3, price: 370, available_on: '5' },
+          '3T' => { distance: 3, price: 370, available_on: '3' },
           'U3' => {
             distance: [{ 'nodes' => ['city'], 'pay' => 3, 'visit' => 3 },
                        { 'nodes' => ['town'], 'pay' => 99, 'visit' => 99 }],
             price: 410,
-            available_on: '5',
+            available_on: '3',
           },
           '6' => { distance: 7, price: 650 },
-          '4T' => { distance: 3, price: 480, available_on: '6' },
-          '2+2' => { distance: 2, price: 600, available_on: '6' },
+          '4T' => { distance: 4, price: 480, available_on: '4' },
+          '2+2' => { distance: 2, price: 600, multiplier: 2, available_on: '4' },
           '7' => { distance: 7, price: 720 },
           '4+4E' => {
             distance: [{ 'nodes' => ['city'], 'pay' => 4, 'visit' => 99 },
                        { 'nodes' => ['town'], 'pay' => 0, 'visit' => 99 }],
             price: 830,
-            available_on: '7',
+            multipler: 2,
+            available_on: '4a',
           },
         }.freeze
 
@@ -204,22 +194,23 @@ module Engine
           '3' => { distance: 3, price: 300, rusts_on: '7' },
           '4' => { distance: 4, price: 430 },
           '5' => { distance: 5, price: 550 },
-          '3T' => { distance: 3, price: 370, available_on: '5' },
+          '3T' => { distance: 3, price: 370, available_on: '3' },
           'U3' => {
             distance: [{ 'nodes' => ['city'], 'pay' => 3, 'visit' => 3 },
                        { 'nodes' => ['town'], 'pay' => 99, 'visit' => 99 }],
             price: 410,
-            available_on: '5',
+            available_on: '3',
           },
           '6' => { distance: 7, price: 650 },
-          '4T' => { distance: 3, price: 480, available_on: '6' },
-          '2+2' => { distance: 2, price: 600, available_on: '6' },
+          '4T' => { distance: 4, price: 480, available_on: '4' },
+          '2+2' => { distance: 2, price: 600, multiplier: 2, available_on: '4' },
           '7' => { distance: 7, price: 720 },
           '4+4E' => {
             distance: [{ 'nodes' => ['city'], 'pay' => 4, 'visit' => 99 },
                        { 'nodes' => ['town'], 'pay' => 0, 'visit' => 99 }],
             price: 830,
-            available_on: '7',
+            multipler: 2,
+            available_on: '4a',
           },
         }.freeze
 
@@ -228,7 +219,7 @@ module Engine
             new_hash = {}
             new_hash[:name] = t
             new_hash[:num] = thash[t]
-            new_hash.merge!(ALL_TRAINS_NO_K3[t]) unless @kits[3]
+            new_hash.merge!(ALL_TRAINS[t]) unless @kits[3]
             new_hash.merge!(ALL_TRAINS_K3[t]) if @kits[3]
             new_hash
           end
@@ -242,7 +233,7 @@ module Engine
               new_hash = {}
               new_hash[:name] = t
               new_hash[:num] = thash[t]
-              new_hash.merge!(ALL_TRAINS_NO_K3[t]) unless @kits[3]
+              new_hash.merge!(ALL_TRAINS[t]) unless @kits[3]
               new_hash.merge!(ALL_TRAINS_K3[t]) if @kits[3]
 
               tlist << new_hash
@@ -250,35 +241,52 @@ module Engine
           end
         end
 
-        # throw out available_on specifiers if that train isn't in the list for this game
+        # throw out available_on specifiers if that phase isn't in this game
         # this should only apply to minor trains
         def fix_train_availables(tlist)
-          all_trains = tlist.map { |h| h[:name] }
+          phase_list = %w[1 2 3]
+          phase_list << '3a' if @units[2] && !@kits[3]
+          phase_list.concat(%w[4 4a]) if @kits[3]
           tlist.each do |h|
-            h.delete(:available_on) if h[:available_on] && !all_trains.include?(h[:available_on])
+            h.delete(:available_on) if h[:available_on] && !phase_list.include?(h[:available_on])
           end
         end
 
         # FIXME: add option for additonal 3T/U3 for Unit 3
-        # FIXME: add K2 trains
         def game_trains
-          trains = case @units.keys.sort.map(&:to_s).join
-                   when '1'
-                     build_train_list({ '2' => 6, '3' => 4, '4' => 3, '5' => 4 })
-                   when '2'
-                     build_train_list({ '2' => 5, '3' => 3, '4' => 2, '5' => 3, '6' => 2 })
-                   when '3'
-                     # extra 5/3T/U3 for minors
-                     build_train_list({ '2' => 5, '3' => 3, '4' => 1, '5' => 3, '7' => 2, '3T' => 1, 'U3' => 1 })
-                   when '12'
-                     build_train_list({ '2' => 7, '3' => 6, '4' => 4, '5' => 5, '6' => 2 })
-                   when '23'
-                     # extra 5/3T/U3 for minors
-                     build_train_list({ '2' => 5, '3' => 5, '4' => 4, '5' => 6, '7' => 2, '3T' => 1, 'U3' => 1 })
-                   else # all units
-                     # extra 5/3T/U3 for minors
-                     build_train_list({ '2' => 7, '3' => 6, '4' => 5, '5' => 6, '6' => 2, '7' => 2, '3T' => 1, 'U3' => 1 })
-                   end
+          trains = build_train_list({
+                                      '2' => 0,
+                                      '3' => 0,
+                                      '4' => 0,
+                                      '5' => 0,
+                                      '3T' => 0,
+                                      'U3' => 0,
+                                      '6' => 0,
+                                      '2+2' => 0,
+                                      '4T' => 0,
+                                      '7' => 0,
+                                      '4+4E' => 0,
+                                    })
+
+          case @units.keys.sort.map(&:to_s).join
+          when '1'
+            add_train_list(trains, { '2' => 6, '3' => 4, '4' => 3, '5' => 4  })
+          when '2'
+            add_train_list(trains, { '2' => 5, '3' => 3, '4' => 2, '5' => 3, '6' => 2 })
+          when '3'
+            # extra 5/3T/U3 for minors
+            add_train_list(trains, { '2' => 5, '3' => 3, '4' => 1, '5' => 3, '3T' => 1, 'U3' => 1, '7' => 2 })
+          when '12'
+            add_train_list(trains, { '2' => 7, '3' => 6, '4' => 4, '5' => 5, '6' => 2, '7' => 0 })
+          when '23'
+            # extra 5/3T/U3 for minors
+            add_train_list(trains, { '2' => 5, '3' => 5, '4' => 4, '5' => 6, '3T' => 1, 'U3' => 1, '7' => 2 })
+          else # all units
+            # extra 5/3T/U3 for minors
+            add_train_list(trains, { '2' => 7, '3' => 6, '4' => 5, '5' => 6, '3T' => 1, 'U3' => 1, '6' => 2, '7' => 2 })
+          end
+
+          add_train_list(trains, { '3T' => 2, 'U3' => 2 }) if @optional_rules.include?(:u3p)
           add_train_list(trains, { 'U3' => 1, '4T' => 1 }) if @regionals[1]
           add_train_list(trains, { '5' => 1 }) if @regionals[2]
           add_train_list(trains, { '4T' => 1 }) if @regionals[3]
@@ -324,6 +332,9 @@ module Engine
         TILE_LAYS = [{ lay: true, upgrade: true }, { lay: :not_if_upgraded, upgrade: false }].freeze
         GAME_END_CHECK = { bank: :current_or, stock_market: :immediate }.freeze
         TRAIN_PRICE_MIN = 10
+        IMPASSABLE_HEX_COLORS = %i[blue sepia red].freeze
+
+        TILE200_HEXES = %w[Q11 T16 V14].freeze
 
         BANK_UNIT1 = 5000
         BANK_UNIT2 = 5000
@@ -349,7 +360,7 @@ module Engine
             when 8
               optional_rules << :unit_123
               @log << 'Using Units 1+2+3 based on player count'
-            when 9
+            else
               optional_rules.concat(%i[unit_123 r1 r2 r3])
               @log << 'Using Units 1+2+3 and R1+R2+R3 based on player count'
             end
@@ -400,12 +411,15 @@ module Engine
           @regionals[2] = true if optional_rules.include?(:r2)
           @regionals[3] = true if optional_rules.include?(:r3)
 
+          raise OptionError, 'Must select at least one Unit if using other options' if !@units[1] && !@units[2] && !@units[3]
           raise OptionError, 'Cannot combine Units 1 and 3 without Unit 2' if @units[1] && !@units[2] && @units[3]
           raise OptionError, 'Cannot add Regionals without Unit 1' if !@regionals.keys.empty? && !@units[1]
           raise OptionError, 'Cannot add K5 without Unit 2' if @kits[5] && !@units[2]
           raise OptionError, 'Cannot add K7 without Unit 1' if @kits[7] && !@units[1]
           raise OptionError, 'K2 not supported with just Unit 3' if @kits[2] && !@units[1] && !@units[2] && @units[3]
           raise OptionError, 'K2 not supported without K3' if @kits[2] && !@kits[3]
+          raise OptionError, 'Cannot use extra Unit 3 trains without Unit 3' if !@units[3] && optional_rules.include?(:u3p)
+          raise OptionError, 'Cannot use K1 or K6 with D1' if (@kits[1] || @kits[6]) && optional_rules.include?(:d1)
 
           p_range = case @units.keys.sort.map(&:to_s).join
                     when '1'
@@ -421,7 +435,7 @@ module Engine
                     else # all units
                       @regionals.empty? ? [4, 8] : [4, 9]
                     end
-          if p_range.first > @players.size || p_range.last < @players.size
+          if (p_range.first > @players.size || p_range.last < @players.size) && @players.size.positive?
             raise OptionError, 'Invalid option(s) for number of players'
           end
 
@@ -624,21 +638,73 @@ module Engine
           stock_market.market.first
         end
 
+        def active_players
+          players_ = @round.active_entities.map(&:player).compact
+
+          players_.empty? ? acting_when_empty : players_
+        end
+
+        def acting_when_empty
+          if (active_entity = @round && @round.active_entities[0])
+            [acting_for_entity(active_entity)]
+          else
+            @players
+          end
+        end
+
+        # for receivership:
+        # find first player from PD not a director
+        # o.w. PD
+        def acting_for_entity(entity)
+          return entity if entity.player?
+          return entity.owner if entity.owner.player?
+
+          acting = @players.find { |p| !director?(p) }
+          acting || @players.first
+        end
+
+        def director?(player)
+          @corporations.any? { |c| c.owner == player }
+        end
+
+        def tile_color_valid_for_phase?(tile, phase_color_cache: nil)
+          phase_color_cache ||= @phase.tiles
+
+          # 119 upgrades from yellow in phase 3
+          return false if tile.name == '119' && !phase_color_cache.include?(:brown)
+
+          # 166 upgrades from green in phase 4
+          return false if tile.name == '166' && !phase_color_cache.include?(:gray)
+
+          phase_color_cache.include?(tile.color)
+        end
+
         def upgrades_to?(from, to, special = false, selected_company: nil)
           # handle special-case upgrades
           return true if force_dit_upgrade?(from, to)
+          return false if illegal_upgrade?(from, to) # only really needed for upgrades shown on tile manifest
 
           # deal with striped tiles
-          # 119 upgrades from yellow, but upgrades to gray
-          return false if (from.name == '119') && (to.color == :brown)
-          # 166 upgrades from green, but doesn't upgrade to gray
-          return false if (from.name == '166') && (to.color == :gray)
+          # 119 upgrades from yellow in phase 3, and upgrades to gray
+          return false if from.name == '119' && to.color == :brown
+          # 166 upgrades from green in phase 4, but doesn't upgrade
+          return false if from.name == '166'
+          # 200 upgrades from pre-printed brown tiles on Crewe, Wolverton or Swindon, doesn't upgrade
+          return false if from.name == '200'
+          return false if to.name == '200' && from.color != :sepia
+          return true if to.name == '200' && TILE200_HEXES.include?(from.hex&.id)
 
           super
         end
 
         def force_dit_upgrade?(from, to)
           return false unless (list = DIT_UPGRADES[from.name])
+
+          list.include?(to.name)
+        end
+
+        def illegal_upgrade?(from, to)
+          return false unless (list = ILLEGAL_UPGRADES[from.name])
 
           list.include?(to.name)
         end
@@ -718,10 +784,10 @@ module Engine
           G1825::Round::Operating.new(self, [
             Engine::Step::HomeToken,
             G1825::Step::TrackAndToken,
-            Engine::Step::Route,
+            G1825::Step::Route,
             G1825::Step::Dividend,
             Engine::Step::DiscardTrain,
-            Engine::Step::BuyTrain,
+            G1825::Step::BuyTrain,
           ], round_num: round_num)
         end
 
@@ -743,9 +809,15 @@ module Engine
 
           corporation.coordinates.each do |coord|
             hex = hex_by_id(coord)
+            next unless hex
+
             tile = hex&.tile
+            next unless tile
+
             cities = tile.cities
             city = cities.find { |c| c.reserved_by?(corporation) } || cities.first
+            next unless city
+
             token = corporation.find_token_by_type
 
             @log << "#{corporation.name} places a token on #{hex.name}"
@@ -816,6 +888,14 @@ module Engine
           entity.corporation? && can_ipo?(entity)
         end
 
+        def silent_receivership?(entity)
+          entity.corporation? && entity.receivership? && minor?(entity) && (@units[1] || @units[2])
+        end
+
+        def can_run_route?(entity)
+          super && !silent_receivership?(entity)
+        end
+
         def status_array(corp)
           if major?(corp)
             layer_str = "Band #{@layer_by_corp[corp]}"
@@ -875,12 +955,23 @@ module Engine
           entity.trains.map { |t| city_distance(t) }.max
         end
 
+        def route_trains(entity)
+          (super + [@round.leased_train]).compact
+        end
+
+        def train_owner(train)
+          train&.owner == @depot ? current_entity : train&.owner
+        end
+
         def double_header_pair?(a, b)
           corporation = train_owner(a.train)
           return false if (common = (a.visited_stops & b.visited_stops)).empty?
 
           common = common.first
           return false if common.city? && common.blocks?(corporation)
+
+          # Neither route can have two towns
+          return false if a.visited_stops.all?(&:town?) || b.visited_stops.all?(&:town?)
 
           a_tokened = a.visited_stops.any? { |n| city_tokened_by?(n, corporation) }
           b_tokened = b.visited_stops.any? { |n| city_tokened_by?(n, corporation) }
@@ -936,18 +1027,19 @@ module Engine
           super
           return if %w[3T 4T].include?(route.train.name)
 
-          raise GameError, 'Route cannot begin/end in a town' if visits.first.town? && visits.last.town?
-
-          end_town = visits.first.town? || visits.last.town?
-          end_town = false if end_town && route.train.distance == 2 && double_header?(route)
-          raise GameError, 'Route cannot begin/end in a town' if end_town
-
           node_hexes = {}
           visits.each do |node|
             raise GameError, 'Cannot visit multiple towns/cities in same hex' if node_hexes[node.hex]
 
             node_hexes[node.hex] = true
           end
+          return if %w[U3 2+2].include?(route.train.name)
+
+          raise GameError, 'Route cannot begin/end in a town' if visits.first.town? && visits.last.town?
+
+          end_town = visits.first.town? || visits.last.town?
+          end_town = false if end_town && route.train.distance == 2 && double_header?(route)
+          raise GameError, 'Route cannot begin/end in a town' if end_town
         end
 
         def check_route_token(route, token)
@@ -965,16 +1057,23 @@ module Engine
           raise GameError, 'Route is not connected'
         end
 
+        # only T trains get halt revenue
+        def stop_revenue(stop, phase, train)
+          return 0 if stop.tile.label.to_s == 'HALT' && train.name != '3T' && train.name != '4T'
+
+          stop.route_revenue(phase, train)
+        end
+
         def revenue_for(route, stops)
           buddies = find_double_header_buddies(route)
           if buddies.empty?
-            stops.sum { |stop| stop.route_revenue(route.phase, route.train) }
+            stops.sum { |stop| stop_revenue(stop, route.phase, route.train) }
           else
             stops.sum do |stop|
               if buddies[-1] == route && buddies[0].stops.include?(stop)
                 0
               else
-                stop.route_revenue(route.phase, route.train)
+                stop_revenue(stop, route.phase, route.train)
               end
             end
           end
@@ -1004,6 +1103,17 @@ module Engine
         def must_buy_train?(_entity)
           false
         end
+
+        def check_bankrupt!(entity)
+          return unless entity.corporation?
+          return unless entity.share_price&.type == :close
+
+          @log << "-- #{entity.name} is now bankrupt and will be removed from the game --"
+          close_corporation(entity, quiet: true)
+          entity.close!
+        end
+
+        def action_processed(_action); end
       end
     end
   end

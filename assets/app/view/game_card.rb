@@ -39,6 +39,10 @@ module View
       user_owns_game?(@user, @gdata)
     end
 
+    def player?
+      user_in_game?(@user, @gdata)
+    end
+
     def players
       @gdata['players']
     end
@@ -50,13 +54,21 @@ module View
       acting.include?(player['id'] || player['name'])
     end
 
+    def lookup_min(game)
+      min_p, _max_p = game::PLAYER_RANGE
+      return min_p unless game.respond_to?(:min_players)
+
+      optional_rules = @gdata.dig('settings', 'optional_rules') || []
+      game.min_players(optional_rules, @gdata['max_players']) || min_p
+    end
+
     def render_header
       buttons = []
 
       bg_color =
         case @gdata['status']
         when 'new'
-          buttons << render_invite_link if owner?
+          buttons << render_invite_link if player? || owner?
           if user_in_game?(@user, @gdata)
             buttons << render_button('Leave', -> { leave_game(@gdata) })
           elsif players.size < @gdata['max_players']
@@ -83,7 +95,7 @@ module View
       end
 
       game = Engine.meta_by_title(@gdata['title'])
-      @min_p, _max_p = game::PLAYER_RANGE
+      @min_p = lookup_min(game)
 
       can_start = owner? && new? && players.size >= @min_p
       buttons << render_button('Start', -> { start_game(@gdata) }) if can_start
