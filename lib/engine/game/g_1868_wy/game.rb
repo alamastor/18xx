@@ -364,8 +364,7 @@ module Engine
           cost = action.cost
 
           player.spend(cost, @bank) if cost.positive?
-          token.place(nil, hex: hex)
-          hex.tile.icons << Part::Icon.new("1868_wy/coal-#{@phase.name}")
+          hex.place_token(token, logo: "1868_wy/coal-#{@phase.name}")
 
           cost_str = cost.positive? ? " for #{format_currency(cost)}" : ''
           @log << "#{player.name} places a Development Token on #{hex.name}#{cost_str}"
@@ -487,9 +486,9 @@ module Engine
         # lays, so track them separately
         def pending_boom_tile_lays
           @pending_boom_tile_lays.merge(
-            @pending_gray_boom_tile_lays[:boom].map { |h| [h, boomcity_tiles(h.tile.name)] }.to_h
+            @pending_gray_boom_tile_lays[:boom].to_h { |h| [h, boomcity_tiles(h.tile.name)] }
           ).merge(
-            @pending_gray_boom_tile_lays[:double_boom].map { |h| [h, [double_boomcity_tile(h.tile.name)]] }.to_h
+            @pending_gray_boom_tile_lays[:double_boom].to_h { |h| [h, [double_boomcity_tile(h.tile.name)]] }
           )
         end
 

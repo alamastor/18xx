@@ -108,7 +108,7 @@ module Engine
         type, params = part_code.split('=')
         params ||= ''
 
-        params = params.split(',').map { |param| param.split(':') }.to_h if params.include?(':')
+        params = params.split(',').to_h { |param| param.split(':') } if params.include?(':')
 
         part(type, params, cache)
       end
@@ -121,7 +121,7 @@ module Engine
     def self.part(type, params, cache)
       case type
       when 'path'
-        params = params.map do |k, v|
+        params = params.to_h do |k, v|
           case k
           when 'terminal', 'a_lane', 'b_lane', 'ignore'
             [k, v]
@@ -137,7 +137,7 @@ module Engine
               [k, Part::Edge.new(v)]
             end
           end
-        end.to_h
+        end
 
         Part::Path.make_lanes(params['a'], params['b'], terminal: params['terminal'],
                                                         lanes: params['lanes'], a_lane: params['a_lane'],
@@ -455,7 +455,7 @@ module Engine
 
       # construct the final hash to return, updating edge_count along the
       # way
-      ct_edges = ct_edges.map do |ct, edges_|
+      ct_edges = ct_edges.to_h do |ct, edges_|
         edge = ct.loc ? compute_loc(ct.loc) : edges_.min_by { |e| edge_count[e] }
 
         # since this edge is being used, increase its count (and that of its
@@ -468,7 +468,7 @@ module Engine
         end
 
         [ct, edge]
-      end.to_h
+      end
 
       # take care of city/towns with no paths when there is one other city/town
       pathless_cts = @city_towns.select { |ct| ct.paths.empty? }
@@ -529,6 +529,10 @@ module Engine
       @revenue_to_render ||= @revenue_stops.map(&:revenue_to_render)
     end
 
+    def revenue_changed
+      @revenue_to_render = nil
+    end
+
     # Used to set label for a recently placed tile
     def label=(label_name)
       @labels.clear
@@ -556,6 +560,10 @@ module Engine
         neighbor = @hex.neighbors[edge]&.tile
         neighbor&.restore_borders([Hex.invert(edge)])
       end
+    end
+
+    def reframe!(color1, color2 = nil)
+      @frame = Engine::Part::Frame.new(color1, color2)
     end
 
     def available_slot?

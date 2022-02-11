@@ -20,6 +20,8 @@ module Engine
         EBUY_SELL_MORE_THAN_NEEDED_LIMITS_DEPOT_TRAIN = true
         EBUY_OTHER_VALUE = false
         CERT_LIMIT_COUNTS_BANKRUPTED = true
+        MUST_BID_INCREMENT_MULTIPLE = true
+        MIN_BID_INCREMENT = 5
 
         ASSIGNMENT_TOKENS = {
           'CDSPC' => '/icons/18_ireland/port_token.svg',
@@ -47,6 +49,8 @@ module Engine
         LIMIT_TOKENS_AFTER_MERGER = 3
 
         GAME_END_CHECK = { bankrupt: :immediate, stock_market: :current_round, bank: :full_or }.freeze
+
+        MINOR_MARKET_SHARE_LIMIT = 40
 
         MARKET = [
           ['', '62', '68', '76', '84', '92', '100p', '110', '122', '134', '148', '170', '196', '225', '260e'],
@@ -110,18 +114,19 @@ module Engine
         TRAINS = [
           {
             name: '2H',
-            num: 6,
+            num: 7,
             distance: 2,
             price: 80,
             rusts_on: '6H',
           },
           {
             name: "1H'",
-            num: 6,
+            num: 7,
             distance: 1,
             price: 40,
             rusts_on: '8H',
             reserved: true,
+            no_local: true,
           },
           {
             name: '4H',
@@ -401,7 +406,7 @@ module Engine
         end
 
         def unstarted_corporation_summary
-          unipoed = @corporations.reject(&:ipoed)
+          unipoed = (@corporations + @future_corporations).reject(&:ipoed)
           minor, major = unipoed.partition { |c| c.type == :minor }
           ["#{major.size} major", minor]
         end
@@ -423,11 +428,14 @@ module Engine
         end
 
         def tile_uses_broad_rules?(old_tile, tile)
-          # Is this tile a 'broad' gauge lay or a 'narrow' gauge lay.
-          # Broad gauge lay is if any of the new exits broad gauge?
+          # Is this tile a 'broad' gauge lay (as opposed to a 'narrow' gauge lay)?
+          # A lay is broad gauge if all its exits are broad gauge (needed for #IR9),
+          # or if any new exits are broad gauge.
           old_paths = old_tile.paths
           new_tile_paths = tile.paths
-          new_tile_paths.all? { |path| path.track == :broad || old_paths.any? { |p| path <= p } }
+          return true if new_tile_paths.all? { |path| path.track == :broad }
+
+          new_tile_paths.any? { |path| path.track == :broad && old_paths.none? { |p| path <= p } }
         end
 
         def legal_tile_rotation?(entity, hex, tile)
@@ -497,6 +505,10 @@ module Engine
 
           @corporations = corporations
           @show_majors = false
+        end
+
+        def init_share_pool
+          G18Ireland::SharePool.new(self)
         end
 
         def rust(train)
@@ -603,11 +615,6 @@ module Engine
           hexes.select do |hex|
             !hex.tile.exits.empty? && hex.tile.cities.any? { |city| city.tokenable?(corporation, free: true) }
           end
-        end
-
-        def buying_power(entity, **)
-          # Cannot issue shares to buy trains
-          entity.cash
         end
 
         def issuable_shares(entity)

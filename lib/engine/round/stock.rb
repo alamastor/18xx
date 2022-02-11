@@ -22,7 +22,8 @@ module Engine
       end
 
       def setup
-        start_entity
+        skip_steps
+        next_entity! unless active_step
       end
 
       def after_process(_action)
@@ -83,7 +84,7 @@ module Engine
       end
 
       def corporations_to_move_price
-        @game.corporations.select(&:floated?)
+        @game.corporations.select { |c| c.floated? && c.type != :minor }
       end
 
       def sold_out_stock_movement(corp)

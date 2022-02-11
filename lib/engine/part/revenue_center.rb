@@ -36,7 +36,12 @@ module Engine
       def parse_revenue(revenue, format = nil)
         @revenue =
           if revenue.include?('|')
-            rev = revenue.split('|').map { |s| s.split('_') }.map { |c, r| [c.to_sym, r.to_i] }.to_h
+            # rubocop:disable Style/MapToHash
+            rev = revenue
+              .split('|')
+              .map { |s| s.split('_') }
+              .to_h { |c, r| [c.to_sym, r.to_i] }
+            # rubocop:enable Style/MapToHash
             @revenue_to_render = rev
             @revenue_to_render =
               if format
@@ -52,8 +57,9 @@ module Engine
               else
                 revenue.to_i
               end
-            self.class::PHASES.map { |phase| [phase, revenue.to_i] }.to_h
+            self.class::PHASES.to_h { |phase| [phase, revenue.to_i] }
           end
+        tile&.revenue_changed
         @revenue
       end
 

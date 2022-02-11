@@ -7,6 +7,14 @@ module Engine
     module G1825
       module Step
         class BuySellParSharesCompanies < Engine::Step::BuySellParSharesCompanies
+          def actions(entity)
+            return [] unless entity == current_entity
+            return super unless must_sell?(entity)
+            return %w[sell_shares sell_company] if can_sell_any_companies?(entity)
+
+            ['sell_shares']
+          end
+
           # only purchase actions count for keeping the round going and for determining priority deal
           def pass!
             super
@@ -17,6 +25,12 @@ module Engine
               @round.pass_order |= [current_entity]
               current_entity&.pass!
             end
+          end
+
+          def get_par_prices(entity, corp)
+            return super unless @game.minor?(corp)
+
+            @game.par_prices(corp).reject { |p| p.price * 4 > entity.cash }
           end
 
           def can_buy_any_companies?(entity)

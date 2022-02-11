@@ -8,7 +8,7 @@ module Engine
       module Meta
         include Game::Meta
 
-        DEV_STAGE = :alpha
+        DEV_STAGE = :production
         PROTOTYPE = true
         DEPENDS_ON = '1817'
 
@@ -24,6 +24,11 @@ module Engine
             sym: :cross_train,
             short_name: 'Cross Train Purchases',
             desc: 'Allows corporations to purchase trains from others',
+          },
+          {
+            sym: :no_mines,
+            short_name: 'No Mine Tiles',
+            desc: 'Do not use the mine tiles',
           },
         ].freeze
       end

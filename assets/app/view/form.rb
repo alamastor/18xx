@@ -19,11 +19,11 @@ module View
     end
 
     def params(inputs = nil)
-      (inputs || @inputs).map do |key, input|
+      (inputs || @inputs).to_h do |key, input|
         input = Native(input)
         elm = input['elm']
         [key, %w[checkbox radio].include?(elm['type']) ? elm['checked'] : elm['value']]
-      end.to_h
+      end
     end
 
     def render_form(name, inputs, description = nil)
@@ -42,7 +42,7 @@ module View
     end
 
     # rubocop:disable Layout/LineLength
-    def render_input(label, id:, placeholder: '', el: 'input', type: 'text', attrs: {}, on: {}, container_style: {}, label_style: {}, input_style: {}, children: [], inputs: nil)
+    def render_input(label, id:, placeholder: '', el: 'input', type: 'text', attrs: {}, on: {}, container_style: {}, label_style: {}, input_style: {}, children: [], siblings: [], inputs: nil)
       # rubocop:enable Layout/LineLength
       label_props = {
         style: {
@@ -73,7 +73,7 @@ module View
       h(
         'div.input-container',
         { style: { **container_style } },
-        children
+        children + siblings,
       )
     end
 

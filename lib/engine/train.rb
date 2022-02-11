@@ -9,7 +9,7 @@ module Engine
 
     attr_accessor :obsolete, :operated, :events, :variants, :obsolete_on, :rusted, :rusts_on, :index, :name,
                   :distance, :reserved
-    attr_reader :available_on, :discount, :multiplier, :sym, :variant
+    attr_reader :available_on, :discount, :multiplier, :sym, :variant, :requires_token
     attr_writer :buyable
 
     def initialize(name:, distance:, price:, index: 0, **opts)
@@ -28,8 +28,9 @@ module Engine
       @rusted = false
       @obsolete = false
       @operated = false
-      @events = (opts[:events] || []).select { |e| @index == (e[:when] || 0) }
+      @events = (opts[:events] || []).select { |e| @index == (e['when'] || 1) - 1 }
       @reserved = opts[:reserved] || false
+      @requires_token = opts[:requires_token].nil? ? true : opts[:requires_token]
       init_variants(opts[:variants])
     end
 
@@ -46,7 +47,8 @@ module Engine
         discount: @discount,
       }
 
-      variants << @variant
+      # Primary variant should be at the head of the list.
+      variants.unshift(@variant)
       @variants = variants.group_by { |h| h[:name] }.transform_values(&:first)
     end
 
@@ -75,8 +77,9 @@ module Engine
     # if set ability must be a :train_discount ability
     def min_price(ability: nil)
       return 1 unless from_depot?
+      return @price unless ability
 
-      ability&.discounted_price(self, @price) || @price
+      Array(ability).map { |a| a.discounted_price(self, @price) }.min
     end
 
     def from_depot?

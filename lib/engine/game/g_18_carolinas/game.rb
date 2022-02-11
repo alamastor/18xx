@@ -326,10 +326,6 @@ module Engine
           end
         end
 
-        def init_share_pool
-          SharePool.new(self, allow_president_sale: self.class::PRESIDENT_SALES_TO_MARKET)
-        end
-
         def setup
           @saved_tiles = @tiles.dup
 
@@ -810,7 +806,7 @@ module Engine
           end
         end
 
-        def check_connected(route, token)
+        def check_connected(route, corporation)
           return if route.train.name == 'Convert'
 
           super
@@ -867,7 +863,7 @@ module Engine
           return false unless self.class::BANKRUPTCY_ALLOWED
 
           total_emr_buying_power(player, corporation) <
-            (min_train - @corporation_power[corporation]) * current_power_cost * 2
+            (min_ebuy_power - @corporation_power[corporation]) * current_power_cost * 2
         end
 
         def on_train_header

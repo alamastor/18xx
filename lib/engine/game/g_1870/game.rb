@@ -25,11 +25,11 @@ module Engine
         BANK_CASH = 12_000
 
         CERT_LIMIT = {
-          2 => { '10' => 28, '9' => 24 },
-          3 => { '10' => 20, '9' => 17 },
-          4 => { '10' => 16, '9' => 14 },
-          5 => { '10' => 13, '9' => 11 },
-          6 => { '10' => 11, '9' => 9 },
+          2 => { 10 => 28, 9 => 24 },
+          3 => { 10 => 20, 9 => 17 },
+          4 => { 10 => 16, 9 => 14 },
+          5 => { 10 => 13, 9 => 11 },
+          6 => { 10 => 11, 9 => 9 },
         }.freeze
 
         STARTING_CASH = { 2 => 1050, 3 => 700, 4 => 525, 5 => 420, 6 => 350 }.freeze
@@ -489,10 +489,10 @@ module Engine
             %w[B9 B19 D5 F5 H13 K16 M2 M6] => 'city=revenue:0',
             %w[J3 J5] => 'city=revenue:0;label=P',
             %w[B7 D9 D21 E8 F9 G10 G20 H21 I14 J9 K4 K20 M8 M10] => 'town=revenue:0',
-            ['M20'] => 'city=revenue:0;icon=image:port',
+            ['M20'] => 'city=revenue:0;icon=image:port,sticky:1',
             %w[C14 C16 G2 H5] => 'upgrade=cost:40,terrain:water',
             %w[H7 I8 J11 K10] => 'upgrade=cost:60,terrain:water',
-            ['B11'] => 'city=revenue:0;upgrade=cost:40,terrain:water;label=P',
+            ['B11'] => 'city=revenue:0;upgrade=cost:40,terrain:water;label=P;label=K',
             ['L11'] => 'city=revenue:0;upgrade=cost:60,terrain:water',
             %w[A10 B13 H3] => 'town=revenue:0;upgrade=cost:40,terrain:water',
             %w[I10 E20] =>
@@ -509,27 +509,27 @@ module Engine
             ['O18'] =>
                    'upgrade=cost:100,terrain:river;partition=a:0-,b:2-,type:water;border=edge:3,type:impassable',
             ['C18'] =>
-                   'city=revenue:0;upgrade=cost:40,terrain:river;partition=a:0+,b:2+,type:water,restrict:inner;label=P',
+                   'city=revenue:0;upgrade=cost:40,terrain:river;partition=a:0+,b:2+,type:water,restrict:inner;label=P;label=L',
             ['M14'] =>
-                   'city=revenue:0;upgrade=cost:80,terrain:river;icon=image:port;'\
+                   'city=revenue:0;upgrade=cost:80,terrain:river;icon=image:port,sticky:1;'\
                    'partition=a:0-,b:2+,type:water,restrict:outer',
             ['H17'] =>
-                   'city=revenue:0;upgrade=cost:60,terrain:river;icon=image:port;'\
+                   'city=revenue:0;upgrade=cost:60,terrain:river;icon=image:port,sticky:1;'\
                    'partition=a:1-,b:3+,type:water,restrict:outer',
             ['D17'] =>
-                   'town=revenue:0;upgrade=cost:40,terrain:river;partition=a:4-,b:5+,type:water',
+                   'town=revenue:0;upgrade=cost:40,terrain:river;partition=a:4-,b:5+,type:water,restrict:outer',
             ['K14'] =>
                    'town=revenue:0;upgrade=cost:80,terrain:river;partition=a:0+,b:4-,type:water,restrict:outer',
             ['A16'] =>
-                   'town=revenue:0;town=revenue:0;upgrade=cost:40,terrain:river;partition=a:0-,b:3,type:water',
+                   'town=revenue:0;town=revenue:0;upgrade=cost:40,terrain:river;partition=a:0-,b:3,type:water,restrict:inner',
             ['O2'] => 'upgrade=cost:60,terrain:lake',
             %w[O4 O6 N9 N11 N13] => 'upgrade=cost:80,terrain:lake',
             ['N19'] =>
                    'upgrade=cost:80,terrain:lake;border=edge:0,type:impassable;border=edge:1,type:impassable',
             ['O14'] => 'upgrade=cost:100,terrain:lake',
-            ['N7'] => 'city=revenue:0;upgrade=cost:80,terrain:lake;icon=image:port',
+            ['N7'] => 'city=revenue:0;upgrade=cost:80,terrain:lake;icon=image:port,sticky:1',
             ['N17'] =>
-                   'city=revenue:0;upgrade=cost:80,terrain:lake;icon=image:port;border=edge:4,type:impassable;label=P',
+                   'city=revenue:0;upgrade=cost:80,terrain:lake;icon=image:port,sticky:1;border=edge:4,type:impassable;label=P',
             ['N21'] => 'town=revenue:0;upgrade=cost:80,terrain:lake',
             %w[D13 D15 E14 E16 F11 F13 F15] =>
                    'upgrade=cost:60,terrain:mountain',
@@ -770,15 +770,17 @@ module Engine
           @share_pool.sell_shares(bundle)
         end
 
-        def num_certs(entity)
+        def num_certs(entity, price_protecting: false)
           entity.shares.sum do |s|
             next 0 unless s.corporation.counts_for_limit
             next 0 unless s.counts_for_limit
-            # Don't count shares that have been sold and will go to yellow unless protected
-            next 0 if @sell_queue.any? do |bundle, _|
-              bundle.corporation == s.corporation &&
-                !stock_market.find_share_price(s.corporation, Array.new(bundle.num_shares, :up)).counts_for_limit
-            end
+            # Don't count shares that have been sold and will go to yellow unless protected.
+            # But if this entity is in process of price protecting, DO count shares sold from white to yellow,
+            # because protecting will keep them white.
+            next 0 if !price_protecting && @sell_queue.any? do |bundle, _|
+                        bundle.corporation == s.corporation &&
+                          !stock_market.find_share_price(s.corporation, Array.new(bundle.num_shares, :up)).counts_for_limit
+                      end
 
             s.cert_size
           end + entity.companies.size
@@ -789,8 +791,12 @@ module Engine
 
           (tile.exits & hex.tile.borders.select { |b| b.type == :water }.map(&:edge)).empty? &&
             hex.tile.partitions.all? do |partition|
-              tile.paths.all? do |path|
-                (path.exits - partition.inner).empty? || (path.exits - partition.outer).empty?
+              if partition.restrict != ''
+                # city and town river tiles restrict all paths to one partition
+                tile.paths.all? { |path| (path.exits - partition.inner).empty? || (path.exits - partition.outer).empty? }
+              else
+                # non-city tile; no paths cross the partition, but there can be paths on both sides
+                tile.paths.empty? { |path| (path.exits - partition.inner).empty? != (path.exits - partition.outer).empty? }
               end
             end
         end
@@ -798,6 +804,12 @@ module Engine
         def upgrades_to?(from, to, _special = false, selected_company: nil)
           return false if to.name == '171K' && from.hex.name != 'B11'
           return false if to.name == '172L' && from.hex.name != 'C18'
+          return false if to.name == '63' && (from.hex.name == 'B11' || from.hex.name == 'C18')
+
+          if %w[B11 C18 N17 J3 J5].include?(from.hex.name)
+            return true if from.color == :green && to.name == '170'
+            return false if to.color == :yellow && to.cities.empty?
+          end
 
           super
         end

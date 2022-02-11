@@ -1,18 +1,23 @@
 # frozen_string_literal: true
 
 require_relative '../../../step/special_track'
-require_relative 'tracker'
+require_relative 'resource_track'
 
 module Engine
   module Game
     module G18USA
       module Step
         class SpecialTrack < Engine::Step::SpecialTrack
-          include Tracker
-          def hex_neighbors(entity, hex)
-            # See 1817 and reinsert pittsburgh check for handling metros
+          include ResourceTrack
 
-            hexes = abilities(entity)&.hexes
+          def actions(entity)
+            return [] if entity&.id == 'P16' && !@game.phase.tiles.include?(:brown)
+
+            super
+          end
+
+          def hex_neighbors(entity, hex)
+            hexes = ability.hexes
             return if hexes&.any? && !hexes&.include?(hex.id)
 
             # When actually laying track entity will be the corp.
@@ -23,57 +28,81 @@ module Engine
 
           def lay_tile(action, extra_cost: 0, entity: nil, spender: nil)
             tile = action.tile
-            check_rural_junction(tile, action.hex) if tile.name.include?('Rural')
+            hex = action.hex
+            entity ||= action.entity
 
+            check_rural_junction(tile, hex) if @game.class::RURAL_TILES.include?(tile.name)
             super
+            process_company_town(tile) if @game.class::COMPANY_TOWN_TILES.include?(tile.name)
           end
 
           def check_rural_junction(_tile, hex)
-            return unless hex.neighbors.values.any? { |h| h.tile.name.include?('Rural') }
+            return unless hex.neighbors.values.any? { |h| @game.class::RURAL_TILES.include?(h.tile.name) }
 
             raise GameError, 'Cannot place rural junctions adjacent to each other'
           end
 
-          def potential_future_tiles(_entity, hex)
-            @game.tiles
-              .uniq(&:name)
-              .select { |t| @game.upgrades_to?(hex.tile, t) }
-          end
-
-          # The oil/coal/iron tiles falsely pass as offboards, so we need to be more careful
-          def real_offboard?(tile)
-            tile.offboards&.any? && !tile.labels&.any?
+          def potential_tile_colors(entity, _hex)
+            colors = super
+            colors << :green if %w[P9 S8].include?(entity.id)
+            colors << :gray if %w[P16 P27].include?(entity.id)
+            colors
           end
 
           def available_hex(entity, hex)
-            return unless (ability = abilities(entity))
-            return custom_tracker_available_hex(entity, hex, special_override: true) if \
-                ability.hexes&.empty? && ability.consume_tile_lay
+            return false unless super
+            return p9_available_hex(entity, hex) if entity.id == 'P9'
+            return p16_available_hex(entity, hex) if entity.id == 'P16'
+            return p26_available_hex(entity, hex) if entity.id == 'P26'
+            return p27_available_hex(entity, hex) if entity.id == 'P27'
 
-            hex_neighbors(entity, hex)
+            true
+          end
+
+          def p9_available_hex(_entity, hex)
+            @game.plain_yellow_city_tiles.find { |t| t.name == hex.tile.name }
+          end
+
+          def p16_available_hex(_entity, hex)
+            %i[green brown].include?(hex.tile.color) && !@game.active_metropolitan_hexes.include?(hex)
+          end
+
+          def p26_available_hex(_entity, hex)
+            hex.tile.color == :white
+          end
+
+          def p27_available_hex(_entity, hex)
+            hex.tile.color == :white &&
+              (hex.tile.cities.empty? || hex.tile.cities.all? { |c| !c.tokens.empty? }) &&
+              (hex.neighbors.values & @game.active_metropolitan_hexes).empty?
           end
 
           def legal_tile_rotation?(entity, hex, tile)
-            # These are needed for the combo private (Keystone Bridge Co)
-            return super if tile.name.include?('Rural')
-            return false if tile.id.include?('iron') && !@game.class::IRON_HEXES.include?(hex.id)
-            return false if tile.id.include?('coal') && !@game.class::COAL_HEXES.include?(hex.id)
+            # TODO: See 1817 and reinsert pittsburgh check for handling metros
+            return true if tile.name == 'X23'
 
-            # See 1817 and reinsert pittsburgh check for handling metros
-            super &&
-            tile.exits.any? do |exit|
-              neighbor = hex.neighbors[exit]
-              ntile = neighbor&.tile
-              next false unless ntile
+            super
+          end
 
-              # The neighbouring tile must have a city or offboard or town
-              # That neighbouring tile must either connect to an edge on the tile or
-              # potentially be updated in future.
-              # 1817 doesn't have any coal next to towns but 1817NA does and
-              #  Marc Voyer confirmed that coal should be able to connect to the gray pre-printed town
-              (ntile.cities&.any? || real_offboard?(ntile) || ntile.towns&.any?) &&
-              (ntile.exits.any? { |e| e == Hex.invert(exit) } || potential_future_tiles(entity, neighbor).any?)
+          def process_company_town(tile)
+            corporation = @game.company_by_id('P27').owner
+            if corporation.tokens.size < 8
+              @game.log << "#{corporation.name} gets a free token to place on the Company Town"
+              bonus_token = Engine::Token.new(corporation)
+              corporation.tokens << bonus_token
+              tile.cities.first.place_token(corporation, bonus_token, free: true, check_tokenable: false)
+            else
+              @game.log << "#{corporation.name} forfeits the Company Town token as they are at token limit of 8"
             end
+            @game.graph.clear
+            @game.company_by_id('P27').close!
+          end
+
+          def abilities(entity, **kwargs, &block)
+            ability = super
+            return nil if ability&.type == :tile_lay && !(@game.class::RESOURCE_LABELS.values & ability&.tiles).empty?
+
+            ability
           end
         end
       end

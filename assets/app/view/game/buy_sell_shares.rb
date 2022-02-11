@@ -73,7 +73,9 @@ module View
       def render_market_shares
         @pool_shares.map do |share|
           next unless @step.can_buy?(@current_entity, share.to_bundle)
-          next if share.to_bundle.presidents_share && @pool_shares.size > 1
+          if share.to_bundle.presidents_share && @pool_shares.size > 1 && !@game.can_buy_presidents_share_directly_from_market?
+            next
+          end
 
           h(Button::BuyShare,
             share: share,
@@ -111,11 +113,15 @@ module View
           corp_shares.group_by(&:percent).values.map(&:first).sort_by(&:percent).reverse.map do |share|
             next unless @step.can_buy?(@current_entity, share.to_bundle)
 
+            button_prefix = 'Buy'
+            button_prefix = @step.corporate_buy_text(share) if @step.respond_to?(:corporate_buy_text)
+
             h(Button::BuyShare,
               share: share,
               entity: @current_entity,
               percentages_available: @ipo_shares.size,
-              source: share.corporation.name)
+              source: share.corporation.name,
+              prefix: button_prefix)
           end
         end
       end

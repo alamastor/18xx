@@ -48,7 +48,7 @@ module Engine
         HOME_TOKEN_TIMING = :float
         SELL_AFTER = :first
         SELL_BUY_ORDER = :sell_buy
-        MARKET_SHARE_LIMIT = 80
+        MARKET_SHARE_LIMIT = 100
         SOLD_OUT_INCREASE = false
         MUST_BID_INCREMENT_MULTIPLE = true
 
@@ -311,17 +311,17 @@ module Engine
         end
 
         def load_minor_extended
-          game_minors.map do |gm|
+          game_minors.to_h do |gm|
             minor = @minors.find { |m| m.name == gm[:sym] }
             [minor, gm[:extended]]
-          end.to_h
+          end
         end
 
         def load_corporation_extended
-          game_corporations.map do |cm|
+          game_corporations.to_h do |cm|
             corp = @corporations.find { |m| m.name == cm[:sym] }
             [corp, cm[:extended]]
-          end.to_h
+          end
         end
 
         # create "dummy" companies based on minors and railways
@@ -543,7 +543,7 @@ module Engine
           operator.trains << train
           @crowded_corps = nil
 
-          close_companies_on_train!(operator)
+          close_companies_on_event!(operator, 'bought_train')
 
           return unless old_owner == @depot
 
@@ -903,7 +903,7 @@ module Engine
         end
 
         def can_restart?(corporation, player)
-          return false if corporation == @mhe
+          return true if corporation == @mhe
           return false unless corporation.receivership?
 
           # see if player has corresponding purchase option (private) for corp
@@ -1653,7 +1653,7 @@ module Engine
           route.visited_stops
         end
 
-        def check_connected(route, token)
+        def check_connected(route, corporation)
           # special case: don't check on concession route(s)
           con_route = @corporation_info[train_owner(route.train)][:concession_routes].any? do |c_r|
             (route.connection_hexes.flatten & c_r).size == c_r.size
@@ -3175,6 +3175,7 @@ module Engine
 
         def available_programmed_actions
           super + [
+            Action::ProgramHarzbahnDraftPass,
             Action::ProgramIndependentMines,
           ]
         end

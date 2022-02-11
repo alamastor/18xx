@@ -5,7 +5,14 @@ require_relative 'base'
 module Engine
   module Step
     class Program < Base
-      ACTIONS = %w[program_buy_shares program_independent_mines program_merger_pass program_share_pass program_disable].freeze
+      ACTIONS = %w[
+        program_buy_shares
+        program_independent_mines
+        program_merger_pass
+        program_harzbahn_draft_pass
+        program_share_pass
+        program_disable
+      ].freeze
 
       def actions(entity)
         return [] unless entity.player?
@@ -27,18 +34,24 @@ module Engine
         process_program_enable(action)
       end
 
+      def process_program_harzbahn_draft_pass(action)
+        process_program_enable(action)
+      end
+
       def process_program_share_pass(action)
         process_program_enable(action)
       end
 
       def process_program_enable(action)
-        @game.player_log(action.entity, "Enabled programmed action #{action.class.print_name}")
+        @game.player_log(action.entity, "Enabled programmed action '#{action}'")
         @game.programmed_actions[action.entity] = action
+        @round.player_enabled_program(action.entity) if @round.respond_to?(:player_enabled_program)
       end
 
       def process_program_disable(action)
-        @game.player_log(action.entity, "Disabled programmed action due to '#{action.reason}'") if action.reason
-        @game.programmed_actions.delete(action.entity)
+        program = @game.programmed_actions.delete(action.entity)
+        reason = action.reason || 'unknown reason'
+        @game.player_log(action.entity, "Disabled programmed action '#{program}' due to '#{reason}'")
       end
 
       def skip!; end

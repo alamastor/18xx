@@ -13,9 +13,9 @@ module Engine
             revenue = @game.routes_revenue(routes)
             subsidy = @game.routes_subsidy(routes)
 
-            dividend_types.map do |type|
+            dividend_types.to_h do |type|
               [type, send(type, entity, revenue, subsidy)]
-            end.to_h
+            end
           end
 
           def share_price_change(entity, revenue)
@@ -77,7 +77,7 @@ module Engine
               train.rusts_on = '2S'
               # do not rust if 1S run instead of train
               next if @round.train_in_route.include?('1S-0') && !@round.train_in_route.include?(train.id)
-              next unless @game.rust?(train)
+              next unless @game.rust?(train, nil)
 
               rusted_trains << train.name
               @game.rust(train)

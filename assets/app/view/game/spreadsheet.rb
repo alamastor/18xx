@@ -121,7 +121,7 @@ module View
         or_history(@game.all_corporations).map do |turn, round|
           if (op_history = corporation.operating_history[[turn, round]])
             revenue_text, alpha =
-              case (op_history.dividend.is_a?(Engine::Action::Dividend) ? op_history.dividend.kind : 'withhold')
+              case op_history.dividend_kind
               when 'withhold'
                 ["[#{op_history.revenue}]", 0.5]
               when 'half'
@@ -337,7 +337,11 @@ module View
           else
             case @spreadsheet_sort_by
             when :id
-              corporation.id
+              if /^\d+$/.match?(corporation.id)
+                [2, corporation.id.to_i]
+              else
+                [1, corporation.id]
+              end
             when :ipo_shares
               num_shares_of(@game.separate_treasury? ? @game.bank : corporation, corporation)
             when :market_shares
@@ -476,7 +480,7 @@ module View
           h('td.padded_number', @game.format_currency(corporation.cash)),
           *treasury,
           h('td.padded_number', order_props, operating_order),
-          h(:td, corporation.trains.map(&:name).join(', ')),
+          h(:td, corporation.trains.map { |t| t.obsolete ? "(#{t.name})" : t.name }.join(', ')),
           h(:td, @game.token_string(corporation)),
           *extra,
           render_companies(corporation),

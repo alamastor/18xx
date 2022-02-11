@@ -171,14 +171,15 @@ class Api
             description: r['description'],
             max_players: r['max_players'],
             settings: {
-              seed: (r['seed'] || Random.new_seed) % 2**31,
+              seed: (r['seed'] || Random.new_seed) % (2**31),
               player_order: r['player_order'],
               unlisted: r['unlisted'],
               optional_rules: r['optional_rules'],
               auto_routing: r['auto_routing'],
+              is_async: r['async'],
             },
             title: title,
-            round: Engine.game_by_title(title).new([]).round&.name,
+            round: 'Unstarted',
           }
 
           game = Game.create(params)

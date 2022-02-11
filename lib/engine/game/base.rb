@@ -47,7 +47,7 @@ module Engine
                     **kwargs)
       when Hash
         title = data['title']
-        names = data['players'].map { |p| [p['id'] || p['name'], p['name']] }.to_h
+        names = data['players'].to_h { |p| [p['id'] || p['name'], p['name']] }
         id = data['id']
         actions ||= data['actions'] || []
         pin ||= data.dig('settings', 'pin')
@@ -62,7 +62,7 @@ module Engine
                     **kwargs)
       when ::Game
         title = data.title
-        names = data.ordered_players.map { |u| [u.id, u.name] }.to_h
+        names = data.ordered_players.to_h { |u| [u.id, u.name] }
         id = data.id
         actions ||= data.actions.map(&:to_h)
         pin ||= data.settings['pin']
@@ -166,6 +166,8 @@ module Engine
       # down_share -- down one row per share
       # down_per_10 -- down one row per 10% sold
       # down_block -- down one row per block
+      # left_share -- left one column per share
+      # left_share_pres -- left one column per share if president
       # left_block_pres -- left one column per block if president
       # left_block -- one row per block
       # none -- don't drop price
@@ -292,6 +294,9 @@ module Engine
       CORPORATE_BUY_SHARE_ALLOW_BUY_FROM_PRESIDENT = false
 
       VARIABLE_FLOAT_PERCENTAGES = false
+
+      # whether corporation cards should show percentage ownership breakdown for players
+      SHOW_SHARE_PERCENT_OWNERSHIP = false
 
       # Setting this to true is neccessary but insufficent to allow downgrading town tiles into plain track
       # See 1856 for an example
@@ -479,7 +484,7 @@ module Engine
         @names = if names.is_a?(Hash)
                    names.freeze
                  else
-                   names.map { |n| [n, n] }.to_h
+                   names.to_h { |n| [n, n] }
                  end
 
         @players = @names.map { |player_id, name| Player.new(player_id, name) }
@@ -554,6 +559,7 @@ module Engine
         setup_optional_rules
         log_optional_rules
         setup
+        @round.setup
 
         initialize_actions(actions, at_action: at_action)
 
@@ -571,7 +577,7 @@ module Engine
           if RUBY_ENGINE == 'opal'
             `parseInt(Big(#{RAND_A}).times(#{@seed}).plus(#{RAND_C}).mod(#{RAND_M}).toString())`
           else
-            (RAND_A * @seed + RAND_C) % RAND_M
+            ((RAND_A * @seed) + RAND_C) % RAND_M
           end
       end
 
@@ -808,7 +814,7 @@ module Engine
 
       def previous_action_id_from(action_id)
         # Skips messages and undone actions
-        @raw_all_actions.reverse.find { |a| a['id'] < action_id && !a['skip'] && a['type'] != 'message' }&.fetch('id')
+        @raw_all_actions.reverse.find { |a| a['id'] < action_id && !a['skip'] && a['type'] != 'message' }&.fetch('id') || 0
       end
 
       def next_action_id_from(action_id)
@@ -818,7 +824,7 @@ module Engine
 
       def process_to_action(id)
         @raw_all_actions.each.with_index do |action, index|
-          next if index < last_game_action_id
+          next if index < (@last_processed_action || 0)
           break if index >= id
 
           if action['skip']
@@ -857,8 +863,9 @@ module Engine
       end
 
       # Before rusting, check if this train individual should rust.
-      def rust?(_train)
-        true
+      def rust?(train, purchased_train)
+        train.rusts_on == purchased_train.sym ||
+          (train.obsolete_on == purchased_train.sym && @depot.discarded.include?(train))
       end
 
       def shares
@@ -892,6 +899,17 @@ module Engine
         format_currency(val)
       end
 
+      def routes_subsidy(_routes)
+        0
+      end
+
+      def submit_revenue_str(routes, show_subsidy)
+        revenue_str = format_revenue_currency(routes_revenue(routes))
+        subsidy = routes_subsidy(routes)
+        subsidy_str = show_subsidy || subsidy.positive? ? " + #{format_currency(routes_subsidy(routes))} (subsidy)" : ''
+        revenue_str + subsidy_str
+      end
+
       def purchasable_companies(entity = nil)
         @companies.select do |company|
           company.owner&.player? && entity != company.owner && !abilities(company, :no_buy)
@@ -913,6 +931,8 @@ module Engine
           end
         end
       end
+
+      def after_sell_company(_buyer, _company, _price, _seller); end
 
       def player_value(player)
         player.value
@@ -968,6 +988,8 @@ module Engine
       end
 
       def value_for_dumpable(player, corporation)
+        return value_for_sellable(player, corporation) if self.class::PRESIDENT_SALES_TO_MARKET
+
         max_bundle = bundles_for_corporation(player, corporation)
           .select { |bundle| bundle.can_dump?(player) && @share_pool&.fit_in_bank?(bundle) }
           .max_by(&:price)
@@ -1019,6 +1041,14 @@ module Engine
         end
       end
 
+      def can_buy_presidents_share_directly_from_market?
+        false
+      end
+
+      def can_swap_for_presidents_share_directly_from_corporation?
+        true
+      end
+
       def shares_for_presidency_swap(shares, num_shares)
         shares.take(num_shares)
       end
@@ -1048,6 +1078,10 @@ module Engine
           (percent / 10).to_i.times { @stock_market.move_down(corporation) }
         when :down_block
           @stock_market.move_down(corporation)
+        when :left_share
+          bundle.num_shares.times { @stock_market.move_left(corporation) }
+        when :left_share_pres
+          bundle.num_shares.times { @stock_market.move_left(corporation) } if was_president
         when :left_block
           @stock_market.move_left(corporation)
         when :down_block_pres
@@ -1066,12 +1100,28 @@ module Engine
         self.class::SOLD_OUT_INCREASE
       end
 
-      def log_share_price(entity, from)
+      def log_share_price(entity, from, steps = nil)
         to = entity.share_price.price
         return unless from != to
 
+        jumps = ''
+        if steps
+          steps = share_jumps(steps)
+          jumps = " (#{steps} steps)" unless steps < 2
+        end
+
         @log << "#{entity.name}'s share price changes from #{format_currency(from)} "\
-                "to #{format_currency(to)}"
+                "to #{format_currency(to)}#{jumps}"
+      end
+
+      def share_jumps(steps)
+        return steps unless @stock_market.zigzag
+
+        if steps > 1
+          steps / 2
+        else
+          steps
+        end
       end
 
       def can_run_route?(entity)
@@ -1135,7 +1185,7 @@ module Engine
       end
 
       def check_route_token(_route, token)
-        raise GameError, 'Route must contain token' unless token
+        raise NoToken, 'Route must contain token' unless token
       end
 
       def check_overlap(routes)
@@ -1170,19 +1220,18 @@ module Engine
         end
       end
 
-      def check_connected(route, token)
-        paths_ = route.paths.uniq
-
-        return if token.select(paths_, corporation: route.corporation).size == paths_.size
+      def check_connected(route, corporation)
+        return if route.ordered_paths.each_cons(2).all? { |a, b| a.connects_to?(b, corporation) }
 
         raise GameError, 'Route is not connected'
       end
 
-      def check_distance(route, visits)
-        distance = route.train.distance
+      def check_distance(route, visits, train = nil)
+        train ||= route.train
+        distance = train.distance
         if distance.is_a?(Numeric)
           route_distance = visits.sum(&:visit_cost)
-          raise GameError, "#{route_distance} is too many stops for #{distance} train" if distance < route_distance
+          raise RouteTooLong, "#{route_distance} is too many stops for #{distance} train" if distance < route_distance
 
           return
         end
@@ -1214,15 +1263,16 @@ module Engine
             break unless num.positive?
           end
 
-          raise GameError, 'Route has too many stops' if num.positive?
+          raise RouteTooLong, 'Route has too many stops' if num.positive?
         end
       end
 
       def check_other(_route); end
 
-      def compute_stops(route)
+      def compute_stops(route, train = nil)
+        train ||= route.train
         visits = route.visited_stops
-        distance = route.train.distance
+        distance = train.distance
         return visits if distance.is_a?(Numeric)
         return [] if visits.empty?
 
@@ -1242,8 +1292,8 @@ module Engine
           # to_i to work around Opal bug
           stops, revenue = visits.combination(num_stops.to_i).map do |stops|
             # Make sure this set of stops is legal
-            # 1) At least one stop must have a token
-            next if stops.none? { |stop| stop.tokened_by?(route.corporation) }
+            # 1) At least one stop must have a token (if enabled)
+            next if train.requires_token && stops.none? { |stop| stop.tokened_by?(route.corporation) }
 
             # 2) We can't ask for more revenue centers of a type than are allowed
             types_used = Array.new(distance.size, 0) # how many slots of each row are filled
@@ -1330,10 +1380,9 @@ module Engine
             @round.clear_cache!
             return
           end
+
           # If the tile does not have any paths at the present time, clear up the ambiguity when the tile is laid
           # otherwise the entity must choose now.
-          @log << "#{corporation.name} must choose city for home token"
-
           hexes =
             if hex
               [hex]
@@ -1341,6 +1390,9 @@ module Engine
               home_token_locations(corporation)
             end
 
+          return unless hexes
+
+          @log << "#{corporation.name} must choose city for home token"
           @round.pending_tokens << {
             entity: corporation,
             hexes: hexes,
@@ -1361,6 +1413,10 @@ module Engine
       end
 
       def graph_for_entity(_entity)
+        @graph
+      end
+
+      def token_graph_for_entity(_entity)
         @graph
       end
 
@@ -1423,7 +1479,7 @@ module Engine
 
       def upgrades_to?(from, to, special = false, selected_company: nil)
         # correct color progression?
-        return false unless Engine::Tile::COLORS.index(to.color) == (Engine::Tile::COLORS.index(from.color) + 1)
+        return false unless upgrades_to_correct_color?(from, to)
 
         # honors pre-existing track?
         return false unless from.paths_are_subset_of?(to.paths)
@@ -1445,6 +1501,10 @@ module Engine
         return false if (from.color == :white) && from.label.to_s == 'OO' && from.cities.size != to.cities.size
 
         true
+      end
+
+      def upgrades_to_correct_color?(from, to)
+        Engine::Tile::COLORS.index(to.color) == (Engine::Tile::COLORS.index(from.color) + 1)
       end
 
       def upgrades_to_correct_label?(from, to)
@@ -1572,13 +1632,13 @@ module Engine
       end
 
       def total_emr_buying_power(player, corporation)
-        corporation.cash +
-          emergency_issuable_cash(corporation) +
-          liquidity(player, emergency: true)
+        buying_power = liquidity(player, emergency: true)
+        buying_power += corporation.cash + emergency_issuable_cash(corporation) if corporation
+        buying_power
       end
 
       def buying_power(entity, **)
-        entity.cash + (issuable_shares(entity).map(&:price).max || 0)
+        entity.cash
       end
 
       def company_sale_price(_company)
@@ -1626,15 +1686,15 @@ module Engine
           end
         end
 
-        close_companies_on_par!(corporation)
+        close_companies_on_event!(corporation, 'par')
         place_home_token(corporation) if self.class::HOME_TOKEN_TIMING == :par
       end
 
-      def close_companies_on_par!(entity)
+      def close_companies_on_event!(entity, event)
         @companies.each do |company|
           next if company.closed?
 
-          abilities(company, :close, time: 'par') do |ability|
+          abilities(company, :close, time: event) do |ability|
             next if entity&.name != ability.corporation
 
             company.close!
@@ -1665,8 +1725,20 @@ module Engine
         'IPO'
       end
 
+      def ipo_verb(_entity = nil)
+        'pars'
+      end
+
       def ipo_reserved_name(_entity = nil)
         'IPO Reserved'
+      end
+
+      def corporation_show_loans?(_corporation)
+        true
+      end
+
+      def corporation_show_shares?(corporation)
+        !corporation.minor?
       end
 
       def abilities(entity, type = nil, time: nil, on_phase: nil, passive_ok: nil, strict_time: nil)
@@ -1704,20 +1776,7 @@ module Engine
         operator.trains << train
         @crowded_corps = nil
 
-        close_companies_on_train!(operator)
-      end
-
-      def close_companies_on_train!(entity)
-        @companies.each do |company|
-          next if company.closed?
-
-          abilities(company, :close, time: 'bought_train') do |ability|
-            next if entity&.name != ability.corporation
-
-            company.close!
-            @log << "#{company.name} closes"
-          end
-        end
+        close_companies_on_event!(operator, 'bought_train')
       end
 
       def discountable_trains_for(corporation)
@@ -1759,7 +1818,7 @@ module Engine
       end
 
       def crowded_corps
-        @crowded_corps ||= corporations.select do |c|
+        @crowded_corps ||= (minors + corporations).select do |c|
           trains = self.class::OBSOLETE_TRAINS_COUNT_FOR_LIMIT ? c.trains.size : c.trains.count { |t| !t.obsolete }
           trains > train_limit(c)
         end
@@ -1832,10 +1891,7 @@ module Engine
 
         trains.each do |t|
           next if t.rusted
-
-          should_rust = t.rusts_on == train.sym || (t.obsolete_on == train.sym && @depot.discarded.include?(t))
-          next unless should_rust
-          next unless rust?(t)
+          next unless rust?(t, train)
 
           rusted_trains << t.name
           owners[t.owner.name] += 1
@@ -1906,7 +1962,7 @@ module Engine
       end
 
       def init_cert_limit
-        cert_limit = self.class::CERT_LIMIT
+        cert_limit = game_cert_limit
         if cert_limit.is_a?(Hash)
           player_count = (self.class::CERT_LIMIT_COUNTS_BANKRUPTED ? players : players.reject(&:bankrupt)).size
           cert_limit = cert_limit[player_count]
@@ -1916,6 +1972,10 @@ module Engine
                          .min_by(&:first)&.last || cert_limit.first.last
         end
         cert_limit || @cert_limit
+      end
+
+      def game_cert_limit
+        self.class::CERT_LIMIT
       end
 
       def init_phase
@@ -1986,6 +2046,14 @@ module Engine
       end
 
       def maximum_loans(_entity)
+        0
+      end
+
+      def loan_value(_entity = nil)
+        0
+      end
+
+      def num_emergency_loans(_entity, _debt)
         0
       end
 
@@ -2168,11 +2236,11 @@ module Engine
       end
 
       def init_share_pool
-        SharePool.new(self)
+        SharePool.new(self, allow_president_sale: self.class::PRESIDENT_SALES_TO_MARKET)
       end
 
       def connect_hexes
-        coordinates = @hexes.map { |h| [[h.x, h.y], h] }.to_h
+        coordinates = @hexes.to_h { |h| [[h.x, h.y], h] }
 
         @hexes.each do |hex|
           Hex::DIRECTIONS[hex.layout].each do |xy, direction|
@@ -2225,7 +2293,7 @@ module Engine
       def check_programmed_actions
         @programmed_actions.reject! do |entity, action|
           if action&.disable?(self)
-            player_log(entity, 'Programmed action removed due to round change')
+            player_log(entity, "Programmed action '#{action}' removed due to round change")
             true
           end
         end
@@ -2302,7 +2370,11 @@ module Engine
                        when :current_or
                          " : Game Ends at conclusion of this OR (#{turn}.#{@round.round_num})"
                        when :full_or
-                         " : Game Ends at conclusion of #{round_end.short_name} #{turn}.#{operating_rounds}"
+                         if @round.is_a?(Round::Operating)
+                           " : Game Ends at conclusion of #{round_end.short_name} #{turn}.#{operating_rounds}"
+                         else
+                           " : Game Ends at conclusion of #{round_end.short_name} #{turn}.#{@phase.operating_rounds}"
+                         end
                        when :one_more_full_or_set
                          " : Game Ends at conclusion of #{round_end.short_name}"\
                          " #{@final_turn}.#{final_operating_rounds}"
@@ -2442,7 +2514,7 @@ module Engine
       def cache_objects
         CACHABLE.each do |type, name|
           ivar = "@_#{type}"
-          instance_variable_set(ivar, send(type).map { |x| [x.id, x] }.to_h)
+          instance_variable_set(ivar, send(type).to_h { |x| [x.id, x] })
 
           self.class.define_method("#{name}_by_id") do |id|
             instance_variable_get(ivar)[id]
@@ -2454,7 +2526,7 @@ module Engine
         return unless CACHABLE.any? { |t, _n| t == type }
 
         ivar = "@_#{type}"
-        instance_variable_set(ivar, send(type).map { |x| [x.id, x] }.to_h)
+        instance_variable_set(ivar, send(type).to_h { |x| [x.id, x] })
       end
 
       def bank_cash
@@ -2593,7 +2665,7 @@ module Engine
       def ability_right_time?(ability, time, on_phase, passive_ok, strict_time)
         return true unless @round
         return true if time == 'any' || ability.when?('any')
-        return (on_phase == ability.on_phase) || (on_phase == 'any') if on_phase
+        return (on_phase == ability.on_phase) || (on_phase == 'any') if ability.on_phase
         return false if ability.passive && !passive_ok
         return true if ability.passive && ability.when.empty?
 

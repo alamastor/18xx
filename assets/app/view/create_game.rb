@@ -1,11 +1,13 @@
 # frozen_string_literal: true
 
 require 'game_manager'
+require 'lib/whats_this'
 require 'view/form'
 
 module View
   class CreateGame < Form
     include GameManager
+    include Lib::WhatsThis::AutoRoute
 
     needs :mode, default: :multi, store: true
     needs :num_players, default: 3, store: true
@@ -18,6 +20,7 @@ module View
     needs :title, default: nil
     needs :production, default: nil
     needs :optional_rules, default: [], store: true
+    needs :is_async, default: true, store: true
 
     def render_content
       @label_style = { display: 'block' }
@@ -30,9 +33,10 @@ module View
       case @mode
       when :multi
         inputs << h(:label, { style: @label_style }, 'Game Options')
+        inputs << render_game_type
         inputs << render_input('Invite only game', id: 'unlisted', type: :checkbox,
                                                    container_style: { paddingLeft: '0.5rem' })
-        inputs << render_input('Auto Routing', id: 'auto_routing', type: :checkbox)
+        inputs << render_input('Auto Routing', id: 'auto_routing', type: :checkbox, siblings: [auto_route_whats_this])
         inputs << render_game_info
       when :hotseat
         inputs << h(:label, { style: @label_style }, 'Player Names')
@@ -69,7 +73,7 @@ module View
           h(:a, { attrs: { href: '/login' } }, 'login'), ' to play multiplayer.'
         ]
       end
-      description << h(:p, 'If you are new to 18xx games then 1889, 18Chesapeake or 18MS are good games to begin with.')
+      description << h(:p, 'If you are new to 18xx games then Shikoku 1889, 18Chesapeake or 18MS are good games to begin with.')
       render_form('Create New Game', inputs, description)
     end
 
@@ -84,7 +88,7 @@ module View
         option_list = game_list.map do |game|
           @min_p[game.title], @max_p[game.title] = game::PLAYER_RANGE
 
-          title = game.title
+          title = game.display_title
           title += " (#{game::GAME_LOCATION})" if game::GAME_LOCATION
           title += ' [Prototype]' if game::PROTOTYPE
 
@@ -228,6 +232,8 @@ module View
       end
 
       optional_rules = selected_game_or_variant::OPTIONAL_RULES.map do |o_r|
+        next if o_r[:hidden]
+
         label_text = "#{o_r[:short_name]}: #{o_r[:desc]}"
         h(:li, [render_input(
           label_text,
@@ -236,7 +242,7 @@ module View
           attrs: { value: o_r[:sym], disabled: !@visible_optional_rules.find { |vo_r| vo_r[:sym] == o_r[:sym] } },
           on: { input: toggle_optional_rule(o_r[:sym]) },
         )])
-      end
+      end.compact
 
       ul_props = {
         style: {
@@ -324,6 +330,25 @@ module View
       )]
     end
 
+    def render_game_type
+      h(:div, { style: { padding: '0.5rem' } }, [
+        render_input(
+          'Async',
+          id: 'async',
+          type: 'radio',
+          attrs: { name: 'is_async', checked: @is_async == true },
+          on: { click: -> { store(:is_async, is_async, skip: true) } }
+        ),
+        render_input(
+          'Live',
+          id: 'live',
+          type: 'radio',
+          attrs: { name: 'is_async', checked: @is_async == false },
+          on: { click: -> { store(:is_async, is_async, skip: true) } }
+        ),
+      ])
+    end
+
     def submit
       game_params = params
       if @mode == :multi
@@ -405,7 +430,7 @@ module View
     end
 
     def filtered_rule?(rule)
-      rule[:players] && !rule[:players].include?(@num_players)
+      rule[:hidden] || (rule[:players] && !rule[:players].include?(@num_players))
     end
 
     def update_inputs

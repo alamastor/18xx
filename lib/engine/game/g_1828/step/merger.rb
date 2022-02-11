@@ -388,7 +388,7 @@ module Engine
               end
 
               entity.shares_of(@merger).first.transfer(@used)
-              @log << "#{entity.name} exchanges 1 #{share.corporation.name} share " + payment_msg + 'for 1 system share'
+              @log << ("#{entity.name} exchanges 1 #{share.corporation.name} share " + payment_msg + 'for 1 system share')
               @game.share_pool.transfer_shares(@system.shares_of(@system).first.to_bundle, entity) unless entity == @ipo
 
               @exchange_selection = nil
@@ -524,8 +524,8 @@ module Engine
               end
             end
 
-            @merger.close!
-            @target.close!
+            close_corporation(@merger)
+            close_corporation(@target)
             reset_merger_step
           end
 
@@ -535,6 +535,16 @@ module Engine
 
           def sold_share?(player, corporation)
             @round.players_sold[player][corporation]
+          end
+
+          def close_corporation(corporation)
+            corporation.share_holders.keys.each do |share_holder|
+              share_holder.shares_by_corporation.delete(corporation)
+            end
+            @game.share_pool.shares_by_corporation.delete(corporation)
+            corporation.share_price&.corporations&.delete(corporation)
+            @game.corporations.delete(corporation)
+            corporation.close!
           end
         end
       end

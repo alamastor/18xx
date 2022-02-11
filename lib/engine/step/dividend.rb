@@ -10,7 +10,7 @@ module Engine
       ACTIONS = %w[dividend].freeze
 
       def actions(entity)
-        return [] if entity.company? || routes.empty?
+        return [] if entity.company? || @game.routes_revenue(routes).zero?
 
         ACTIONS
       end
@@ -33,11 +33,11 @@ module Engine
 
       def dividend_options(entity)
         revenue = @game.routes_revenue(routes)
-        dividend_types.map do |type|
+        dividend_types.to_h do |type|
           payout = send(type, entity, revenue)
           payout[:divs_to_corporation] = corporation_dividends(entity, payout[:per_share])
           [type, payout.merge(share_price_change(entity, revenue - payout[:corporation]))]
-        end.to_h
+        end
       end
 
       def process_dividend(action)
@@ -155,6 +155,7 @@ module Engine
 
         prev = entity.share_price.price
 
+        right_times = 0
         Array(payout[:share_times]).zip(Array(payout[:share_direction])).each do |share_times, direction|
           share_times.times do
             case direction
@@ -162,6 +163,7 @@ module Engine
               @game.stock_market.move_left(entity)
             when :right
               @game.stock_market.move_right(entity)
+              right_times += 1
             when :up
               @game.stock_market.move_up(entity)
             when :down
@@ -169,7 +171,7 @@ module Engine
             end
           end
         end
-        @game.log_share_price(entity, prev)
+        @game.log_share_price(entity, prev, right_times)
       end
 
       def routes
@@ -182,6 +184,13 @@ module Engine
         end
 
         @log << '-- Event: Obsolete trains rust --' if rusted_trains.any?
+      end
+
+      def pass!
+        return unless (entity = current_entity)
+
+        @game.close_companies_on_event!(entity, 'operated') if entity.operating_history.size == 1
+        super
       end
 
       private

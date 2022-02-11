@@ -1087,11 +1087,10 @@ module Engine
           major.close!
         end
 
-        def rust?(train)
-          return super unless @optional_rules&.include?(:delay_minor_close)
+        def rust?(train, _purchased_train)
+          return false if @optional_rules&.include?(:delay_minor_close) && train.name == '2' && train.owner.minor?
 
-          # Do not rust minor's 2 trains
-          !(train.name == '2' && train.owner.minor?)
+          super
         end
 
         def buy_first_5_train(player)
@@ -1241,7 +1240,7 @@ module Engine
           # Sort eligible corporations so that they are in player order
           # starting with the player to the left of the one that bought the 5 train
           index_for_trigger = @players.index(@ndm_merge_trigger)
-          order = @players.each_with_index.map { |p, i| i <= index_for_trigger ? [p, i + 10] : [p, i] }.to_h
+          order = @players.each_with_index.to_h { |p, i| i <= index_for_trigger ? [p, i + 10] : [p, i] }
           floated_player_corps.sort_by! { |c| [order[c.player], @round.entities.index(c)] }
 
           # If any non-floated corporation has not yet been ipoed

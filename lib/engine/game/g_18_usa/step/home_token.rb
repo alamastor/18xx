@@ -7,26 +7,26 @@ module Engine
     module G18USA
       module Step
         class HomeToken < Engine::Step::HomeToken
-          def generate_subsidy_company(subsidy)
-            Engine::Company.new({
-                                  sym: subsidy['id'],
-                                  name: subsidy['name'],
-                                  desc: subsidy['desc'],
-                                  value: subsidy['value'] || 0,
-                                })
+          def round_state
+            super.merge(
+              {
+                minimum_city_subsidy: 0,
+              }
+            )
           end
 
           def process_place_token(action)
-            # If the corporation's location has a subsidy add it
-            corporation = token.corporation
-            subsidy = @game.subsidies_by_hex.delete(action.city.hex.coordinates)
-            if subsidy
-              action.city.hex.tile.icons.reject! { |icon| icon.name.include?('subsidy') }
-              subsidy_company = generate_subsidy_company(subsidy)
-              subsidy_company.owner = corporation
-              corporation.companies << subsidy_company
-            end
+            @game.add_subsidy(token.corporation, action.city.hex)
+            @round.minimum_city_subsidy = 0
             super
+          end
+
+          def available_hex(_entity, hex)
+            return false unless super
+            return true if @round.minimum_city_subsidy.zero?
+
+            city_subsidy = (subsidy = @game.subsidies_by_hex[hex.coordinates]) ? subsidy[:value] : 0
+            city_subsidy >= @round.minimum_city_subsidy
           end
         end
       end

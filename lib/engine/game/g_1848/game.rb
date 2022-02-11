@@ -7,6 +7,8 @@ module Engine
   module Game
     module G1848
       class Game < Game::Base
+        attr_reader :sydney_adelaide_connected
+
         include_meta(G1848::Meta)
 
         CURRENCY_FORMAT_STR = '£%d'
@@ -194,31 +196,77 @@ module Engine
                     operating_rounds: 3,
                   }].freeze
 
-        TRAINS = [{ name: '2', distance: 2, price: 100, rusts_on: '4', num: 6 },
-                  { name: '2+', distance: 2, price: 120, rusts_on: '4', num: 6 },
-                  { name: '3', distance: 3, price: 200, rusts_on: '6', num: 5 },
-                  { name: '3+', distance: 3, price: 230, rusts_on: '6', num: 5 },
-                  { name: '4', distance: 4, price: 300, rusts_on: '8', num: 4 },
-                  { name: '4+', distance: 4, price: 340, rusts_on: '8', num: 4 },
-                  {
-                    name: '5',
-                    distance: 5,
-                    price: 500,
-                    num: 3,
-                    events: [{ 'type' => 'close_companies' }],
-                  },
-                  { name: '5+', distance: 5, price: 550, num: 3 },
-                  { name: '6', distance: 6, price: 600, num: 2 },
-                  { name: '6+', distance: 6, price: 660, num: 2 },
-                  {
-                    name: 'D',
-                    distance: 999,
-                    price: 1100,
-                    num: 6,
-                    discount: { '4' => 300, '5' => 300, '6' => 300 },
-                  },
-                  { name: '8', distance: 8, price: 800, num: 6 },
-                  { name: '2E', distance: 2, price: 200, num: 6 }].freeze
+        TRAINS = [
+          {
+            name: '2',
+            distance: 2,
+            price: 100,
+            rusts_on: '4',
+            num: 6,
+            variants: [
+              { name: '2+', price: 120 },
+            ],
+          },
+          {
+            name: '3',
+            distance: 3,
+            price: 200,
+            rusts_on: '6',
+            num: 5,
+            variants: [
+              { name: '3+', distance: 3, price: 230 },
+            ],
+          },
+          {
+            name: '4',
+            distance: 4,
+            price: 300,
+            rusts_on: '8',
+            num: 4,
+            variants: [
+              { name: '4+', distance: 4, price: 340 },
+            ],
+          },
+          {
+            name: '5',
+            distance: 5,
+            price: 500,
+            num: 3,
+            events: [{ 'type' => 'close_companies' }],
+            variants: [
+              { name: '5+', distance: 5, price: 550 },
+],
+          },
+          {
+            name: '6',
+            distance: 6,
+            price: 600,
+            num: 2,
+            variants: [
+              { name: '6+', distance: 6, price: 660 },
+            ],
+          },
+          {
+            name: 'D',
+            distance: 999,
+            price: 1100,
+            num: 6,
+            discount: { '4' => 300, '5' => 300, '6' => 300 },
+          },
+          {
+            name: '8',
+            distance: 8,
+            price: 800,
+            num: 6,
+          },
+          {
+            name: '2E',
+            distance: 2,
+            price: 200,
+            num: 6,
+            available_on: '5',
+          },
+        ].freeze
 
         COMPANIES = [
           {
@@ -440,8 +488,13 @@ module Engine
 
         HOME_TOKEN_TIMING = :operate
 
+        def setup
+          super
+          @sydney_adelaide_connected = false
+        end
+
         def new_auction_round
-          Round::Auction.new(self, [
+          Engine::Round::Auction.new(self, [
             G1848::Step::DutchAuction,
           ])
         end
@@ -451,14 +504,70 @@ module Engine
             Engine::Step::Bankrupt,
             Engine::Step::Exchange,
             Engine::Step::BuyCompany,
-            Engine::Step::Track,
+            G1848::Step::Track,
             Engine::Step::Token,
             Engine::Step::Route,
             Engine::Step::Dividend,
             Engine::Step::DiscardTrain,
-            Engine::Step::BuyTrain,
+            G1848::Step::BuyTrain,
             [Engine::Step::BuyCompany, { blocks: true }],
           ], round_num: round_num)
+        end
+
+        def upgrades_to?(from, to, _special = false, selected_company: nil)
+          return %w[5 6 57].include?(to.name) if (from.hex.tile.label.to_s == 'K') && (from.hex.tile.color == 'white')
+
+          super
+        end
+
+        def sar
+          # SAR is used for graph to find adelaide (to connect to sydney for starting COM)
+          @sar ||= @corporations.find { |corporation| corporation.name == 'SAR' }
+        end
+
+        def sydney
+          @sydney ||= hex_by_id('F17')
+        end
+
+        def adelaide
+          @adelaide ||= hex_by_id('G6')
+        end
+
+        def check_sydney_adelaide_connected
+          return @sydney_adelaide_connected if @sydney_adelaide_connected
+
+          graph = Graph.new(self, home_as_token: true, no_blocking: true)
+          graph.compute(sar)
+          @sydney_adelaide_connected = graph.reachable_hexes(sar).include?(sydney)
+          @sydney_adelaide_connected
+        end
+
+        def place_home_token(entity)
+          return super if entity.name != :COM
+          return unless @sydney_adelaide_connected
+          return if entity.tokens.first&.used
+
+          # COM places home tokens... regardless as to whether there is space for them
+          [sydney, adelaide].each do |home_hex|
+            city = home_hex.tile.cities[0]
+            slot = city.available_slots.positive? ? 0 : city.slots
+            home_token = entity.tokens.find { |token| !token.used && token.price.zero? }
+            city.place_token(entity, home_token, free: true, check_tokenable: false, cheater: slot)
+          end
+        end
+
+        def crowded_corps
+          # 2E does not create a crowded corp
+          @crowded_corps ||= (minors + corporations).select do |c|
+            c.trains.count { |t| !t.obsolete && t.name != '2E' } > train_limit(c)
+          end
+        end
+
+        def must_buy_train?(entity)
+          # 2E does not count as compulsory train purchase
+          entity.trains.reject { |t| t.name == '2E' }.empty? &&
+            !depot.depot_trains.empty? &&
+             (self.class::MUST_BUY_TRAIN == :route && @graph.route_info(entity)&.dig(:route_train_purchase))
         end
       end
     end

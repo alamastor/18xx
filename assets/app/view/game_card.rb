@@ -9,6 +9,7 @@ module View
   class GameCard < Snabberb::Component
     include GameManager
     include Lib::Settings
+    include Lib::WhatsThis::AutoRoute
 
     needs :user
     needs :gdata # can't conflict with game_data
@@ -130,7 +131,7 @@ module View
 
       h('div.header', div_props, [
         h(:div, text_props, [
-          h(:div, "Game: #{@gdata['title']}"),
+          h(:div, "Game: #{game.display_title}"),
           h('div.nowrap', owner_props, "Owner: #{@gdata['user']['name']}"),
         ]),
         h(:div, buttons_props, buttons),
@@ -188,7 +189,7 @@ module View
 
       invite_url = url(@gdata)
       flash = lambda do
-        `navigator.clipboard.writeText((window.location + invite_url).replace('//game', '/game'))`
+        `navigator.clipboard.writeText((window.location.origin + invite_url).replace('//game', '/game'))`
         store(:flash_opts, { message: msg, color: 'lightgreen' }, skip: false)
       end
       render_link(invite_url, flash, 'Invite')
@@ -225,16 +226,20 @@ module View
 
           elm = h(:span, [
             h(acting?(player) ? :em : :span, player_props, short_name),
-            index == (players.size - 1) || owner? && new? ? '' : ', ',
+            index == (players.size - 1) || (owner? && new?) ? '' : ', ',
           ])
         end
         elm
       end
 
-      children = [h(:div, [h(:strong, 'Id: '), @gdata['id'].to_s])]
+      row_styles = { style: { display: 'flex', flexDirection: 'row', justifyContent: 'space-between' } }
+      pill_styles = { style: { background: 'darkred', borderRadius: '30px', padding: '0px 5px' } }
+      id_row = [h(:div, [h(:strong, 'Id: '), @gdata['id'].to_s])]
+      id_row << h(:div, pill_styles, 'Live') if !@gdata['settings']['is_async'] && !@gdata['settings']['is_async'].nil?
+      children = [h(:div, row_styles, id_row)]
       if @gdata['status'] == 'new'
         children << h(:div, [h(:i, 'Invite only game')]) if @gdata.dig('settings', 'unlisted')
-        children << h(:div, [h(:i, 'Auto Routing')]) if @gdata.dig('settings', 'auto_routing')
+        children << h(:div, [h(:i, ['Auto Routing', auto_route_whats_this])]) if @gdata.dig('settings', 'auto_routing')
       end
       children << h(:div, [h(:strong, 'Description: '), @gdata['description']]) unless @gdata['description'].empty?
 
@@ -306,7 +311,7 @@ module View
       h('div.game.card', [
         h('div.header', header_props, [
           h(:div, [
-            h(:div, "Game: #{@gdata['title']}"),
+            h(:div, "Game: #{Engine.closest_display_title(@gdata['title'])}"),
             h('div.nowrap', 'Owner: You'),
           ]),
           button,

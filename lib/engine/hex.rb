@@ -7,7 +7,7 @@ module Engine
     include Assignable
 
     attr_accessor :x, :y, :ignore_for_axes, :location_name
-    attr_reader :coordinates, :empty, :layout, :neighbors, :all_neighbors, :tile, :original_tile
+    attr_reader :coordinates, :empty, :layout, :neighbors, :all_neighbors, :tile, :original_tile, :tokens
 
     DIRECTIONS = {
       flat: {
@@ -78,6 +78,7 @@ module Engine
       @activations = []
       @empty = empty
       @ignore_for_axes = false
+      @tokens = []
     end
 
     def id
@@ -108,7 +109,7 @@ module Engine
           @tile.cities.zip(tile.cities).to_h
         # if @tile is not blank, ensure connectivity is maintained
         else
-          @tile.cities.map do |old_city|
+          @tile.cities.to_h do |old_city|
             new_city = tile.cities.find do |city|
               # we want old_edges to be subset of new_edges
               # without the any? check, first city will always match
@@ -116,7 +117,7 @@ module Engine
             end
 
             [old_city, new_city]
-          end.to_h
+          end
         end
 
       # When downgrading from yellow to no-exit tiles, assume it's the same index
@@ -241,6 +242,19 @@ module Engine
       else
         dx + [0, (dy - dx) / 2].max
       end
+    end
+
+    def place_token(token, logo: nil)
+      token.place(self)
+      @tokens << token
+      icon = Part::Icon.new('', token.corporation.id, true)
+      icon.image = logo || token.corporation.logo
+      @tile.icons << icon
+    end
+
+    def remove_token(token)
+      @tile.icons.delete(@tile.icons.find { |_name| token.corporation.id })
+      @tokens.delete(token)
     end
 
     def inspect

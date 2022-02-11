@@ -496,7 +496,6 @@ module Engine
               type: 'minor',
               tokens: [0],
               logo: '1893/EKB',
-              simple_logo: '1893/EKB.alt',
               coordinates: 'T3',
               city: 0,
               color: :green,
@@ -516,7 +515,6 @@ module Engine
               type: 'minor',
               tokens: [0],
               logo: '1893/KFBE',
-              simple_logo: '1893/KFBE.alt',
               coordinates: 'L3',
               city: 0,
               color: :red,
@@ -527,7 +525,6 @@ module Engine
               type: 'minor',
               tokens: [0],
               logo: '1893/KSZ',
-              simple_logo: '1893/KSZ.alt',
               coordinates: 'P7',
               city: 0,
               color: :green,
@@ -538,7 +535,6 @@ module Engine
               type: 'minor',
               tokens: [0],
               logo: '1893/KBE',
-              simple_logo: '1893/KBE.alt',
               coordinates: 'O4',
               city: 0,
               color: :red,
@@ -549,7 +545,6 @@ module Engine
               type: 'minor',
               tokens: [0],
               logo: '1893/BKB',
-              simple_logo: '1893/BKB.alt',
               coordinates: 'I2',
               city: 0,
               color: :green,
@@ -672,8 +667,8 @@ module Engine
 
         MARKET_TEXT = {
           par: 'Par values for non-merged corporations',
-          par_1: 'Par value for AGV',
-          par_2: 'Par value for HGK',
+          par_1: 'Par value for HGK',
+          par_2: 'Par value for AGV',
         }.freeze
 
         STOCKMARKET_COLORS = Base::STOCKMARKET_COLORS.merge(
@@ -853,26 +848,33 @@ module Engine
         end
 
         def operating_round(round_num)
-          Engine::Round::Operating.new(self, [
-            Engine::Step::Bankrupt,
-            Engine::Step::DiscardTrain,
-            Engine::Step::HomeToken,
-            G1893::Step::BuyCompany,
-            G1893::Step::Track,
-            Engine::Step::Token,
-            Engine::Step::Route,
-            G1893::Step::Dividend,
-            G1893::Step::BuyTrain,
-          ], round_num: round_num)
+          G1893::Round::Operating.new(self, [
+          Engine::Step::Bankrupt,
+          Engine::Step::DiscardTrain,
+          Engine::Step::HomeToken,
+          G1893::Step::BuyCompany,
+          G1893::Step::Track,
+          Engine::Step::Token,
+          Engine::Step::Route,
+          G1893::Step::Dividend,
+          G1893::Step::BuyTrain,
+        ], round_num: round_num)
         end
 
         def new_merger_round(count)
           @merger_count = count
-          @log << "-- Merge Round #{@turn}.#{@merger_count} (of 3) --"
+          @log << "-- #{round_description('Merger')} --"
           G1893::Round::Merger.new(self, [
             G1893::Step::PotentialDiscardTrainsAfterMerge,
             G1893::Step::Merger,
           ])
+        end
+
+        def round_description(name, _round_num = nil)
+          return super unless name == 'Merger'
+          return "Merger Round before Stock Round #{@turn + 1}" if @merger_count > 2
+
+          "Merger Round before Operating Round #{@turn}.#{@merger_count}"
         end
 
         def float_str(entity)
@@ -1231,11 +1233,13 @@ module Engine
             move_share(president_share, new_president)
           end
 
-          # Give president the chance to discard any trains
-          @potential_discard_trains << mergable unless mergable.trains.empty?
-
           mergable.ipoed = true
-          @log << "#{mergable.name} have been completely founded and now floats"
+          @log << "-- #{mergable.name} have been completely founded and now floats"
+          return if mergable.trains.empty?
+
+          # Give president the chance to discard any trains
+          @potential_discard_trains << mergable
+          @log << "-- #{mergable.owner.name} will have to decide which trains #{mergable.name} should keep"
         end
 
         def shares_for_presidency_swap(shares, num_shares)
@@ -1270,7 +1274,7 @@ module Engine
           value = super
           return value unless sellable_turn?
 
-          value + 100 * player.companies.count { |c| bond?(c) }
+          value + (100 * player.companies.count { |c| bond?(c) })
         end
 
         def buyable?(entity)
@@ -1382,7 +1386,7 @@ module Engine
           optional_e2 = optional_existing_track ? ['E2'] : []
           {
             red: {
-              ['A4'] => 'city=revenue:yellow_10|green_30|brown_50;'\
+              ['A4'] => 'town=revenue:yellow_20|green_30|brown_50;'\
                         'path=a:0,b:_0;path=a:1,b:_0;path=a:5,b:_0',
               ['B5'] => 'path=a:2,b:0;path=a:2,b:5',
               ['B9'] => 'offboard=revenue:yellow_20|green_30|brown_40,hide:1,groups:Wuppertal;'\
@@ -1405,7 +1409,7 @@ module Engine
             gray: {
               ['F1'] => 'town=revenue:10;path=a:4,b:_0;path=a:5,b:_0',
               ['F5'] => 'path=a:1,b:2;path=a:3,b:5',
-              ['T7'] => 'path=a:1,b:2;path=a:3,b:5;upgrade=cost:0,terrain:water',
+              ['T7'] => 'path=a:1,b:2;path=a:3,b:5',
               ['F9'] => 'path=a:2,b:0',
               ['H5'] => 'city=revenue:20;path=a:0,b:_0',
               ['H9'] => 'path=a:3,b:1',
@@ -1427,9 +1431,9 @@ module Engine
               ['L5'] => 'city=revenue:0;border=edge:5,type:impassable;upgrade=cost:40,terrain:water;label=K;'\
                         'border=edge:4,type:water,cost:0',
               ['M6'] => 'upgrade=cost:40,terrain:water;border=edge:2,type:impassable',
-              ['O6'] => 'city=revenue:0;upgrade=cost:0,terrain:water;border=edge:1,type:impassable;'\
+              ['O6'] => 'city=revenue:0;border=edge:1,type:impassable;'\
                         'border=edge:2,type:impassable',
-              ['Q6'] => 'upgrade=cost:0,terrain:water;border=edge:0,type:impassable;border=edge:1,type:impassable;'\
+              ['Q6'] => 'border=edge:0,type:impassable;border=edge:1,type:impassable;'\
                         'border=edge:2,type:impassable',
               ['S6'] => 'city=revenue:0;upgrade=cost:40,terrain:water;border=edge:3,type:impassable;'\
                         'border=edge:4,type:water,cost:0;label=BX',

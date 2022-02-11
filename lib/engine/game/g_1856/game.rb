@@ -859,7 +859,7 @@ module Engine
           entity.num_player_shares
         end
 
-        def loan_value
+        def loan_value(_entity = nil)
           100
         end
 
@@ -1049,7 +1049,7 @@ module Engine
           # Can't go anywhere if we have nowhere to start
           return false unless hex_by_id(start_hex_id)
 
-          tokens = hex_by_id(start_hex_id).tile.cities.map { |city| [city, true] }.to_h
+          tokens = hex_by_id(start_hex_id).tile.cities.to_h { |city| [city, true] }
 
           tokens.keys.each do |node|
             visited = tokens.reject { |token, _| token == node }
@@ -1120,6 +1120,10 @@ module Engine
           return false if corporation == national
 
           super
+        end
+
+        def can_swap_for_presidents_share_directly_from_corporation?
+          false
         end
 
         #
@@ -1454,6 +1458,9 @@ module Engine
         end
 
         def merge_major(major)
+          raise GameError, "#{major.name} cannot merge twice" if @nationalized_corps.include?(major)
+          raise GameError, "#{major.name} isn't eligible for merging" unless nationalizables.include?(major)
+
           @national_formed = true
           @log << "-- #{major.name} merges into #{national.name} --"
           # Trains are transferred
@@ -1702,7 +1709,9 @@ module Engine
               next if !token.used || !token.city || home_bases.any? { |base| base.hex == token.city.hex }
 
               remove_duplicate_tokens(corp, home_bases)
-              replace_token(corp, token, create_national_token)
+              national_token = create_national_token
+              national_token.price = 0
+              replace_token(corp, token, national_token)
             end
           end
 
@@ -1833,7 +1842,7 @@ module Engine
           index_for_trigger = @players.index(@nationalization_trigger)
           # This is based off the code in 18MEX; 10 appears to be an arbitrarily large integer
           #  where the exact value doesn't really matter
-          order = @players.each_with_index.map { |p, i| i < index_for_trigger ? [p, i + 10] : [p, i] }.to_h
+          order = @players.each_with_index.to_h { |p, i| i < index_for_trigger ? [p, i + 10] : [p, i] }
           floated_player_corps.sort_by { |c| [order[c.player], @round.entities.index(c)] }
         end
 
@@ -1844,6 +1853,9 @@ module Engine
         end
 
         def nationalization_president_payoff(major, owed)
+          raise GameError, "#{major.name} cannot pay off loans twice" if @nationalized_corps.include?(major)
+          raise GameError, "#{major.name} isn't eligible for paying off loans" unless nationalizables.include?(major)
+
           major.spend(major.cash, @bank) if major.cash.positive?
           major.owner.spend(owed, @bank)
           @loans << major.loans.pop(major.loans.size)

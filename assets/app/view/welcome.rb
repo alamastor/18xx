@@ -17,9 +17,9 @@ module View
 
     def render_notification
       message = <<~MESSAGE
-        <p>1825 is now in alpha. 18VA is now in beta.</p>
-
-        <p>We now support Slack/Discord notifications. Learn how to use them <a href='https://github.com/tobymao/18xx/wiki/Notifications'>here</a>.</p>
+        <p><b><a href='https://github.com/tobymao/18xx/wiki/18EU'>18EU</a> and 18Rhl</b> are now in alpha.</p>
+        <p>You can now advertise your game as async or live.</p>
+        <p>Learn how to get <a href='https://github.com/tobymao/18xx/wiki/Notifications'>notifications</a> by email, Slack, Discord, and Telegram.</p>
         <p>Please submit problem reports and make suggestions for improvements on
         <a href='https://github.com/tobymao/18xx/issues'>GitHub</a>.</p>
         <p>The <a href='https://github.com/tobymao/18xx/wiki'>18xx.games Wiki</a> has rules, maps,
@@ -53,7 +53,7 @@ module View
     def render_introduction
       message = <<~MESSAGE
         <p>18xx.games is a website where you can play async or real-time 18xx games (based on the system originally devised by the brilliant Francis Tresham)!
-        If you are new to 18xx games then 1889, 18Chesapeake, or 18MS are good games to begin with.</p>
+        If you are new to 18xx games then Shikoku 1889, 18Chesapeake, or 18MS are good games to begin with.</p>
 
         <p>You can play locally with hot seat mode without an account. If you want to play multiplayer, you'll need to create an account.</p>
 

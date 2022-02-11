@@ -287,7 +287,7 @@ module Engine
             sym: 'P16',
             value: 0,
             revenue: 0,
-            desc: 'CAN NOT BE AQUIRED. Tax Haven. As a stock round action, under the direction and funded by the '\
+            desc: 'CAN NOT BE ACQUIRED. Tax Haven. As a stock round action, under the direction and funded by the '\
                   'owning player, the off-shore Tax Haven may purchase an available share certificate and place it '\
                   'onto P16’s charter. The certificate is not counted for determining directorship of a company. '\
                   'The share held in the tax haven does NOT count against the 60% share limit for purchasing '\
@@ -388,7 +388,7 @@ module Engine
             sym: 'C1',
             value: 100,
             revenue: 10,
-            desc: 'Have a face value £100 and converts into the LNWR’s 10% director certificate. LNWR may also put '\
+            desc: 'Has a face value of £100 and converts into the LNWR’s 10% director certificate. LNWR may also put '\
                   'its destination token into Manchester when converted.',
             abilities: [
               {
@@ -406,7 +406,7 @@ module Engine
             sym: 'C2',
             value: 100,
             revenue: 10,
-            desc: 'Have a face value £100 and contribute £100 to the conversion into the GWR director’s certificate.',
+            desc: 'Has a face value of £100 and contributes £100 to conversion into the GWR director’s certificate.',
             abilities: [
               {
                 type: 'exchange',
@@ -423,7 +423,7 @@ module Engine
             sym: 'C3',
             value: 100,
             revenue: 10,
-            desc: 'Have a face value £100 and contribute £100 to the conversion into the LBSCR director’s '\
+            desc: 'Has a face value of £100 and contributes £100 to conversion into the LBSCR director’s '\
                   'certificate.',
             abilities: [
               {
@@ -441,7 +441,7 @@ module Engine
             sym: 'C4',
             value: 100,
             revenue: 10,
-            desc: 'Have a face value £100 and contribute £100 to the conversion into the SECR director’s '\
+            desc: 'Has a face value of £100 and contributes £100 to conversion into the SECR director’s '\
                   'certificate.',
             abilities: [
               {
@@ -459,7 +459,7 @@ module Engine
             sym: 'C5',
             value: 100,
             revenue: 10,
-            desc: 'Have a face value £100 and contribute £100 to the conversion into the CR director’s certificate.',
+            desc: 'Has a face value of £100 and contributes £100 to conversion into the CR director’s certificate.',
             abilities: [
               {
                 type: 'exchange',
@@ -476,7 +476,7 @@ module Engine
             sym: 'C6',
             value: 100,
             revenue: 10,
-            desc: 'Have a face value £100 and contribute £100 to the conversion into the MR director’s certificate.',
+            desc: 'Has a face value of £100 and contributes £100 to conversion into the MR director’s certificate.',
             abilities: [
               {
                 type: 'exchange',
@@ -493,7 +493,7 @@ module Engine
             sym: 'C7',
             value: 100,
             revenue: 10,
-            desc: 'Have a face value £100 and contribute £100 to the conversion into the LYR director’s certificate.',
+            desc: 'Has a face value of £100 and contributes £100 to conversion into the LYR director’s certificate.',
             abilities: [
               {
                 type: 'exchange',
@@ -510,7 +510,7 @@ module Engine
             sym: 'C8',
             value: 100,
             revenue: 10,
-            desc: 'Have a face value £100 and contribute £100 to the conversion into the NBR director’s certificate.',
+            desc: 'Has a face value of £100 and contributes £100 to conversion into the NBR director’s certificate.',
             abilities: [
               {
                 type: 'exchange',
@@ -527,7 +527,7 @@ module Engine
             sym: 'C9',
             value: 100,
             revenue: 10,
-            desc: 'Have a face value £100 and contribute £100 to the conversion into the SWR director’s certificate.',
+            desc: 'Has a face value of £100 and contributes £100 to conversion into the SWR director’s certificate.',
             abilities: [
               {
                 type: 'exchange',
@@ -544,7 +544,7 @@ module Engine
             sym: 'C10',
             value: 100,
             revenue: 10,
-            desc: 'Have a face value £100 and contribute £100 to the conversion into the NER director’s certificate.',
+            desc: 'Has a face value of £100 and contributes £100 to conversion into the NER director’s certificate.',
             abilities: [
               {
                 type: 'exchange',
@@ -1354,6 +1354,8 @@ module Engine
             city: 3,
             color: '#000',
             reservation_color: nil,
+            destination_coordinates: 'I22',
+            destination_icon: '1822/LNWR_DEST',
           },
           {
             sym: 'GWR',
@@ -1367,6 +1369,8 @@ module Engine
             city: 1,
             color: '#165016',
             reservation_color: nil,
+            destination_coordinates: 'G36',
+            destination_icon: '1822/GWR_DEST',
           },
           {
             sym: 'LBSCR',
@@ -1381,6 +1385,8 @@ module Engine
             color: '#cccc00',
             text_color: 'black',
             reservation_color: nil,
+            destination_coordinates: 'M42',
+            destination_icon: '1822/LBSCR_DEST',
           },
           {
             sym: 'SECR',
@@ -1403,6 +1409,8 @@ module Engine
             ],
             color: '#ff7f2a',
             reservation_color: nil,
+            destination_coordinates: 'P41',
+            destination_icon: '1822/SECR_DEST',
           },
           {
             sym: 'CR',
@@ -1415,6 +1423,8 @@ module Engine
             coordinates: 'E6',
             color: '#5555ff',
             reservation_color: nil,
+            destination_coordinates: 'G12',
+            destination_icon: '1822/CR_DEST',
           },
           {
             sym: 'MR',
@@ -1427,6 +1437,8 @@ module Engine
             coordinates: 'J29',
             color: '#ff2a2a',
             reservation_color: nil,
+            destination_coordinates: 'L19',
+            destination_icon: '1822/MR_DEST',
           },
           {
             sym: 'LYR',
@@ -1439,6 +1451,8 @@ module Engine
             coordinates: 'G22',
             color: '#5a2ca0',
             reservation_color: nil,
+            destination_coordinates: 'I22',
+            destination_icon: '1822/LYR_DEST',
           },
           {
             sym: 'NBR',
@@ -1451,6 +1465,8 @@ module Engine
             coordinates: 'H5',
             color: '#a05a2c',
             reservation_color: nil,
+            destination_coordinates: 'H1',
+            destination_icon: '1822/NBR_DEST',
           },
           {
             sym: 'SWR',
@@ -1464,6 +1480,8 @@ module Engine
             color: '#999999',
             text_color: 'black',
             reservation_color: nil,
+            destination_coordinates: 'C34',
+            destination_icon: '1822/SWR_DEST',
           },
           {
             sym: 'NER',
@@ -1476,6 +1494,8 @@ module Engine
             coordinates: 'L19',
             color: '#aade87',
             reservation_color: nil,
+            destination_coordinates: 'H5',
+            destination_icon: '1822/NER_DEST',
           },
         ].freeze
       end

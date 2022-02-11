@@ -16,6 +16,7 @@ module Engine
             abilities: [
               {
                 type: 'tile_discount',
+                when: 'track',
                 owner_type: 'corporation',
                 terrain: 'water',
                 discount: 80,
@@ -23,6 +24,7 @@ module Engine
               },
               {
                 type: 'tile_lay',
+                when: 'track',
                 owner_type: 'corporation',
                 tiles: [],
                 hexes: [],
@@ -39,9 +41,9 @@ module Engine
             sym: 'SC',
             value: 40,
             revenue: 10,
-            desc: 'Owning corporation may exchange this company for a stagecoach token in Albany. ' \
-                  'This token is removed when the first 12H is purchased, ' \
-                  'but may be exchaned for an available company token at that point.',
+            desc: 'Owning corporation may exchange this company to place the stagecoach token in Albany. ' \
+                  'The Stagecoach token is removed when the first 12H is purchased, ' \
+                  "but may be replaced with one of the corporation's available tokens at that time.",
             color: nil,
             abilities: [
               {
@@ -51,9 +53,7 @@ module Engine
                 hexes: ['F20'],
                 price: 0,
                 teleport_price: 0,
-                count: 1,
                 extra_action: true,
-                # TODO : Token can be exchanged for corporation token when 12H is purchased; otherwise remove
               },
               { type: 'reservation', remove: 'close', hex: 'F20', slot: 1 },
             ],
@@ -64,7 +64,7 @@ module Engine
             value: 60,
             revenue: 15,
             desc: 'Owning corporation may exchange this company for half off a train purchase ' \
-                  '(up to a maximimum of $200) from the bank or Bank Pool.',
+                  '(up to a maximum of $200) from the bank or Bank Pool.',
             color: nil,
             abilities: [
               {
@@ -92,7 +92,6 @@ module Engine
             revenue: 20,
             desc: 'Owning corporation has exclusive rights to claim coal tokens.',
             color: nil,
-            # TODO: Claim coal tokens if corporation has route to them
           },
           {
             name: 'Erie Canal',
@@ -112,7 +111,7 @@ module Engine
             revenue: 30,
             desc: 'The owning player gets the President\'s certificate of the D&H corporation, ' \
                   'and must immediately set its stock price. The corporation floats and receives ' \
-                  'twice the starting stock price to its treasury. The company closes when the D&H ' \
+                  'twice this stock price. This company closes when the D&H ' \
                   'buys a train or with the purchase of the first 12H train.',
             color: nil,
             abilities: [{ type: 'shares', shares: %w[D&H_0] },
@@ -131,7 +130,6 @@ module Engine
             always_market_price: true,
             shares: [100],
             float_percent: 100,
-            hide_shares: true,
             max_ownership_percent: 100,
             coordinates: 'F20',
             color: '#000000',
@@ -146,7 +144,6 @@ module Engine
             always_market_price: true,
             shares: [100],
             float_percent: 100,
-            hide_shares: true,
             max_ownership_percent: 100,
             coordinates: 'E19',
             color: '#000000',
@@ -161,7 +158,6 @@ module Engine
             always_market_price: true,
             shares: [100],
             float_percent: 100,
-            hide_shares: true,
             max_ownership_percent: 100,
             coordinates: 'D8',
             color: '#000000',
@@ -176,7 +172,6 @@ module Engine
             always_market_price: true,
             shares: [100],
             float_percent: 100,
-            hide_shares: true,
             max_ownership_percent: 100,
             coordinates: 'E15',
             color: '#000000',
@@ -191,7 +186,6 @@ module Engine
             always_market_price: true,
             shares: [100],
             float_percent: 100,
-            hide_shares: true,
             max_ownership_percent: 100,
             coordinates: 'E11',
             color: '#000000',
@@ -206,7 +200,6 @@ module Engine
             always_market_price: true,
             shares: [100],
             float_percent: 100,
-            hide_shares: true,
             max_ownership_percent: 100,
             coordinates: 'E3',
             color: '#000000',
@@ -221,7 +214,6 @@ module Engine
             always_market_price: true,
             shares: [100],
             float_percent: 100,
-            hide_shares: true,
             max_ownership_percent: 100,
             coordinates: 'E21',
             color: '#000000',
@@ -236,7 +228,6 @@ module Engine
             always_market_price: true,
             shares: [100],
             float_percent: 100,
-            hide_shares: true,
             max_ownership_percent: 100,
             coordinates: 'D2',
             color: '#000000',
@@ -251,7 +242,6 @@ module Engine
             always_market_price: true,
             shares: [100],
             float_percent: 100,
-            hide_shares: true,
             max_ownership_percent: 100,
             coordinates: 'D4',
             color: '#000000',
@@ -266,7 +256,6 @@ module Engine
             always_market_price: true,
             shares: [100],
             float_percent: 100,
-            hide_shares: true,
             max_ownership_percent: 100,
             coordinates: 'D12',
             color: '#000000',
@@ -281,7 +270,6 @@ module Engine
             always_market_price: true,
             shares: [100],
             float_percent: 100,
-            hide_shares: true,
             max_ownership_percent: 100,
             coordinates: 'E5',
             color: '#000000',
@@ -323,7 +311,7 @@ module Engine
             always_market_price: true,
             float_percent: 20,
             coordinates: 'J20',
-            color: '#ED1C24',
+            color: '#8C4776',
             reservation_color: nil,
           },
           {
@@ -363,7 +351,7 @@ module Engine
             always_market_price: true,
             float_percent: 20,
             coordinates: 'F26',
-            color: '#A7A9AC',
+            color: '#E21F27',
             reservation_color: nil,
           },
           {

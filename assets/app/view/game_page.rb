@@ -15,7 +15,6 @@ module View
     needs :tile_selector, default: nil, store: true
     needs :user
     needs :connected, default: false, store: true
-    needs :before_process_pass, default: -> {}, store: true
     needs :scroll_pos, default: nil, store: true
     needs :chat_input, default: '', store: true
 
@@ -275,7 +274,7 @@ module View
     private
 
     def render_title
-      title = "#{@game.class.title} - #{@game.id} - 18xx.Games"
+      title = "#{@game.class.display_title} - #{@game.id} - 18xx.Games"
       title = "* #{title}" if @game.active_players_id.include?(@user&.dig('id'))
       `document.title = #{title}`
       change_favicon(active_player)
@@ -373,7 +372,7 @@ module View
 
     def render_round
       description = @game_data['mode'] == :hotseat ? '[HOTSEAT] ' : ''
-      description += "#{@game.class.title}: "
+      description += "#{@game.class.display_title}: "
       description += "Phase #{@game.phase.name} - "
       name = @round.class.name.split(':').last
       description += @game.round_description(name)
@@ -413,11 +412,10 @@ module View
         else
           h(Game::Round::Operating, game: @game)
         end
-      when Engine::Round::Draft
-        h(Game::Round::Auction, game: @game, user: @user, before_process_pass: @before_process_pass)
       when Engine::Round::Choices
         h(Game::Round::Choices, game: @game)
-      when Engine::Round::Auction
+      when Engine::Round::Auction,
+           Engine::Round::Draft
         h(Game::Round::Auction, game: @game, user: @user)
       when Engine::Round::Merger
         if !(%w[buy_train scrap_train reassign_trains] & current_entity_actions).empty?
@@ -438,7 +436,7 @@ module View
       children << h(Game::EntityOrder, round: @round)
       unless @game.finished
         children << h(Game::Abilities, user: @user, game: @game)
-        children << h(Game::Pass, before_process_pass: @before_process_pass, actions: current_entity_actions)
+        children << h(Game::Pass, actions: current_entity_actions)
         children << h(Game::Help, game: @game)
       end
       children << render_action

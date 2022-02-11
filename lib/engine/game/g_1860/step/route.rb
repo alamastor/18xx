@@ -12,7 +12,7 @@ module Engine
           def actions(entity)
             check_insolvency!(entity)
             return [] if !entity.operator? ||
-                         entity.trains.empty? && !@game.insolvent?(entity) ||
+                         (entity.trains.empty? && !@game.insolvent?(entity)) ||
                          !@game.legal_route?(entity)
 
             ACTIONS
@@ -53,6 +53,15 @@ module Engine
           def can_afford_depot_train?(entity)
             min_price = @game.depot.min_depot_price
             min_price.positive? && entity.cash >= min_price
+          end
+
+          def train_name(_entity, train)
+            if @game.nationalization
+              short_train = train.name.split('+')[0]
+              "#{short_train} (#{train.name})"
+            else
+              train.name
+            end
           end
 
           def process_run_routes(action)

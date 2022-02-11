@@ -200,7 +200,7 @@ module Engine
             on: '3',
             train_limit: { five_share: 2, ten_share: 4 },
             tiles: %i[yellow green],
-            corporation_sizes: [5, 10],
+            corporation_sizes: [5],
             operating_rounds: 2,
             status: ['may_convert'],
           },
@@ -637,7 +637,7 @@ module Engine
           hotels = stops.count { |h| h.tile.icons.any? { |i| i.name == route.corporation.id } }
 
           # 3E doesn't count hotels.
-          route.train.variant['name'] == '3E' ? revenue : revenue + hotels * hotel_value
+          route.train.variant['name'] == '3E' ? revenue : revenue + (hotels * hotel_value)
         end
 
         def init_hexes(_companies, corporations)

@@ -41,7 +41,7 @@ module Engine
         @last_to_act = nil
         @pass_order = []
 
-        @steps = (DEFAULT_STEPS + steps).map do |step, step_opts|
+        @steps = (self.class::DEFAULT_STEPS + steps).map do |step, step_opts|
           step_opts ||= {}
           step = step.new(@game, self, **step_opts)
           step.round_state.each do |key, value|
@@ -130,7 +130,14 @@ module Engine
       def step_for(entity, action)
         return unless entity
 
-        @steps.find { |step| step.active? && step.actions(entity).include?(action) }
+        @steps.each do |step|
+          next unless step.active?
+
+          return step if step.actions(entity).include?(action)
+          break if step.blocking?
+        end
+
+        nil
       end
 
       def step_passed?(action_klass)
@@ -138,13 +145,18 @@ module Engine
       end
 
       def active_step(entity = nil)
-        return @steps.find { |step| step.active? && step.actions(entity).any? } if entity
+        # Steps for companies are non-blocking
+        if entity
+          return @steps.find do |step|
+            step.active? && !step.actions(entity).empty? && (entity.company? || step.blocking?)
+          end
+        end
 
         @active_step ||= @steps.find { |step| step.active? && step.blocking? }
       end
 
       def auto_actions
-        active_step&.auto_actions(current_entity)
+        active_step(current_entity)&.auto_actions(current_entity)
       end
 
       def finished?
@@ -182,6 +194,10 @@ module Engine
       end
 
       def merger?
+        false
+      end
+
+      def auction?
         false
       end
 

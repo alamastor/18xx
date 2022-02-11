@@ -27,8 +27,6 @@ module Engine
                         black: '#000',
                         white: '#ffffff')
 
-        GAME_END_CHECK = { bank: :full_or, stock_market: :current_or }.freeze
-
         BANKRUPTCY_ALLOWED = false
 
         CURRENCY_FORMAT_STR = '£%d'
@@ -285,11 +283,11 @@ module Engine
 
         EVENTS_TEXT = {
           'close_concessions' =>
-            ['Concessions close', 'All concessions close without compensation, major companies now float at 50%'],
+            ['Concessions close', 'All concessions close without compensation, major companies float at 50%'],
           'full_capitalisation' =>
-            ['Full capitalisation', 'Major companies now receives full capitalisation when floated'],
+            ['Full capitalisation', 'Major companies receive full capitalisation when floated'],
           'phase_revenue' =>
-            ['Phase revenue', 'P15-HR and P20-C&WR closes if not acquired by a major company'],
+            ['Phase revenue companies close', 'P15-HR and P20-C&WR close if not owned by a major company'],
         }.freeze
 
         STATUS_TEXT = Base::STATUS_TEXT.merge(
@@ -335,19 +333,6 @@ module Engine
         COMPANY_CONCESSION_PREFIX = 'C'
         COMPANY_MINOR_PREFIX = 'M'
         COMPANY_PRIVATE_PREFIX = 'P'
-
-        DESTINATIONS = {
-          'LNWR' => 'I22',
-          'GWR' => 'G36',
-          'LBSCR' => 'M42',
-          'SECR' => 'P41',
-          'CR' => 'G12',
-          'MR' => 'L19',
-          'LYR' => 'I22',
-          'NBR' => 'H1',
-          'SWR' => 'C34',
-          'NER' => 'H5',
-        }.freeze
 
         EXCHANGE_TOKENS = {
           'LNWR' => 4,
@@ -402,27 +387,27 @@ module Engine
         COMPANY_HSBC_TILES = %w[N21 N23].freeze
 
         COMPANY_SHORT_NAMES = {
-          'P1' => 'P1-BEC',
-          'P2' => 'P2-MtonR',
-          'P3' => 'P3-S&HR',
-          'P4' => 'P4-SDR',
-          'P5' => 'P5-LC&DR',
-          'P6' => 'P6-L&SR',
-          'P7' => 'P7-S&BR',
-          'P8' => 'P8-E&GR',
-          'P9' => 'P9-M&GNR',
-          'P10' => 'P10-G&SWR',
-          'P11' => 'P11-B&ER',
-          'P12' => 'P12-L&SR',
-          'P13' => 'P13-YN&BR',
-          'P14' => 'P14-K&TR',
-          'P15' => 'P15-HR',
-          'P16' => 'P16-Tax Haven',
-          'P17' => 'P17-LUR',
-          'P18' => 'P18-C&HPR',
-          'P19' => 'P19-AEC',
-          'P20' => 'P20-C&WR',
-          'P21' => 'P21-HSBC',
+          'P1' => 'P1 (5-Train)',
+          'P2' => 'P2 (Remove Town)',
+          'P3' => 'P3 (Permanent 2T)',
+          'P4' => 'P4 (Permanent 2T)',
+          'P5' => 'P5 (English Channel)',
+          'P6' => 'P6 (Mail Contract)',
+          'P7' => 'P7 (Mail Contract)',
+          'P8' => 'P8 (Hill Discount)',
+          'P9' => 'P9 (Double Cash)',
+          'P10' => 'P10 (River Discount)',
+          'P11' => 'P11 (Adv. Tile Lay)',
+          'P12' => 'P12 (Extra Tile Lay)',
+          'P13' => 'P13 (Pullman)',
+          'P14' => 'P14 (Pullman)',
+          'P15' => 'P15 (£10x Phase)',
+          'P16' => 'P16 (Tax Haven)',
+          'P17' => 'P17 (Move Card)',
+          'P18' => 'P18 (Station Swap)',
+          'P19' => 'P19 (Perm. L Train)',
+          'P20' => 'P20 (£5x Phase)',
+          'P21' => 'P21 (Grimsby/Hull Bridge)',
           'C1' => 'LNWR',
           'C2' => 'GWR',
           'C3' => 'LBSCR',
@@ -551,10 +536,6 @@ module Engine
 
         def bank_sort(corporations)
           corporations.reject { |c| c.type == :minor }.sort_by(&:name)
-        end
-
-        def buying_power(entity, **)
-          entity.cash
         end
 
         def can_par?(corporation, parrer)
@@ -734,14 +715,14 @@ module Engine
         end
 
         def event_full_capitalisation!
-          @log << '-- Event: Major companies now receives full capitalisation when floated --'
+          @log << '-- Event: Major companies receive full capitalisation when floated --'
           @corporations.select { |c| !c.floated? && c.type == :major }.each do |corporation|
             corporation.capitalization = :full
           end
         end
 
         def event_phase_revenue!
-          @log << '-- Event: Phase revenue companies now close with money returned to the bank --'
+          @log << '-- Event: Phase revenue companies close with money returned to the bank --'
           self.class::PRIVATE_PHASE_REVENUE.each do |company_id|
             company = @companies.find { |c| c.id == company_id }
             next if !company || company&.closed? || !@phase_revenue[company_id]
@@ -792,6 +773,10 @@ module Engine
             .map { |bundle| reduced_bundle_price_for_market_drop(bundle) }
         end
 
+        def choose_step
+          [G1822::Step::Choose]
+        end
+
         def next_round!
           @round =
             case @round
@@ -800,9 +785,7 @@ module Engine
               reorder_players
               new_operating_round
             when Engine::Round::Stock
-              G1822::Round::Choices.new(self, [
-                G1822::Step::Choose,
-              ], round_num: @round.round_num)
+              G1822::Round::Choices.new(self, choose_step, round_num: @round.round_num)
             when Engine::Round::Operating
               if @round.round_num < @operating_rounds
                 or_round_finished
@@ -914,12 +897,12 @@ module Engine
 
         def init_hexes(_companies, _corporations)
           hexes = super
-
-          self.class::DESTINATIONS.each do |corp, destination|
-            hexes.find { |h| h.id == destination }.tile.icons << Part::Icon.new("../icons/1822/#{corp}_DEST",
-                                                                                "#{corp}_destination")
+          @corporations.each do |c|
+            if c.destination_coordinates
+              hexes.find { |h| h.id == c.destination_coordinates }.tile.icons <<
+                Part::Icon.new("../#{c.destination_icon}", "#{c.id}_destination")
+            end
           end
-
           hexes
         end
 
@@ -966,6 +949,11 @@ module Engine
         end
 
         def payout_companies
+          set_private_revenues
+          super
+        end
+
+        def set_private_revenues
           # Set the correct revenue of P15-HR, P20-C&WR and P9-M&GNR
           @companies.each do |c|
             next unless c.owner
@@ -987,8 +975,6 @@ module Engine
               c.revenue = self.class::COMPANY_MGNR_REVENUE[@phase.name.to_i]
             end
           end
-
-          super
         end
 
         def place_home_token(corporation)
@@ -1000,7 +986,7 @@ module Engine
           # and destination is connected
           return unless corporation.id == 'LNWR'
 
-          hex = hex_by_id(self.class::DESTINATIONS[corporation.id])
+          hex = hex_by_id(corporation.destination_coordinates)
           token = corporation.find_token_by_type(:destination)
           place_destination_token(corporation, hex, token)
         end
@@ -1098,6 +1084,8 @@ module Engine
         end
 
         def setup
+          @game_end_reason = nil
+
           # Setup the bidding token per player
           @bidding_token_per_player = init_bidding_token
 
@@ -1129,9 +1117,8 @@ module Engine
           # Randomize and setup the companies
           setup_companies
 
-          # Setup the fist bidboxes
+          # Actual bidbox setup happens in the stock round.
           @bidbox_minors_cache = []
-          setup_bidboxes
 
           # Setup exchange token abilities for all corporations
           setup_exchange_tokens
@@ -1857,6 +1844,29 @@ module Engine
           extra_city.tokens[extra_city.normal_slots] = nil
         end
 
+        def can_only_lay_plain_or_towns?(entity)
+          entity.id == self.class::COMPANY_BER
+        end
+
+        def can_upgrade_one_phase_ahead?(entity)
+          entity.id == self.class::COMPANY_BER
+        end
+
+        def must_remove_town?(entity)
+          entity.id == self.class::COMPANY_MTONR
+        end
+
+        def game_end_check
+          # Once the game end has been determined, it's set in stone
+          @game_end_reason ||= compute_game_end
+        end
+
+        def compute_game_end
+          return [:bank, @round.is_a?(Round::Operating) ? :full_or : :current_or] if @bank.broken?
+
+          return %i[stock_market current_or] if @stock_market.max_reached?
+        end
+
         private
 
         def find_and_remove_train_by_id(train_id, buyable: true)
@@ -1944,21 +1954,22 @@ module Engine
         end
 
         def setup_destinations
-          self.class::DESTINATIONS.each do |corp, destination|
-            description = if corp == 'LNWR'
-                            "Gets destination token at #{destination} when floated"
+          @corporations.each do |c|
+            next unless c.destination_coordinates
+
+            description = if c.id == 'LNWR'
+                            "Gets destination token at #{c.destination_coordinates} when floated"
                           else
-                            "Connect to #{destination} for your destination token"
+                            "Connect to #{c.destination_coordinates} for your destination token"
                           end
             ability = Ability::Base.new(
               type: 'destination',
               description: description
             )
-            corporation = corporation_by_id(corp)
-            corporation.add_ability(ability)
-            corporation.tokens << Engine::Token.new(corporation, logo: "/logos/1822/#{corp}_DEST.svg",
-                                                                 simple_logo: "/logos/1822/#{corp}_DEST.svg",
-                                                                 type: :destination)
+            c.add_ability(ability)
+            c.tokens << Engine::Token.new(c, logo: "../#{c.destination_icon}.svg",
+                                             simple_logo: "../#{c.destination_icon}.svg",
+                                             type: :destination)
           end
         end
 

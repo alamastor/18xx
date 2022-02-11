@@ -244,7 +244,7 @@ module Engine
             return 0 unless @game.corporation_power[corporation] < @game.min_ebuy_power
 
             diff = @game.min_ebuy_power - @game.corporation_power[corporation]
-            diff * @game.class::POWER_COST[@game.phase.name] * 2
+            diff * @game.class::POWER_COST[@game.phase.name] * 1.5
           end
 
           def ebuy_power_needed(corporation)
@@ -301,7 +301,7 @@ module Engine
               next unless p + 1 >= min_possible
 
               if (p + 1) == min_possible && must_buy_power?(entity) &&
-                lines << [(p + 1).to_s, @game.format_currency(ebuy_cash_needed(entity))]
+                (lines << [(p + 1).to_s, @game.format_currency(ebuy_cash_needed(entity))])
                 break
               end
 
